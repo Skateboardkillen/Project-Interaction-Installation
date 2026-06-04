@@ -15,6 +15,21 @@ app.get('/', (req, res) => {
     });
 });
 
-app.listen(PORT, () => {
-    console.log(`Server running at http://localhost:${PORT}`);
+app.get('/waitingView', (req, res) => {
+    res.render('waitingView', { 
+        username: 'User', 
+        date: new Date().toLocaleDateString() 
+    });
 });
+
+app.get('/installation-explanation', (req, res) => {
+    res.render('installationExplanation');
+});
+
+if (require.main === module) {
+    app.listen(process.env.PORT || PORT, () => {
+        console.log(`Server running at http://localhost:${process.env.PORT || PORT}`);
+    });
+}
+
+module.exports = app;

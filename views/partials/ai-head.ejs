@@ -1,0 +1,433 @@
+<canvas id="ai-canvas"></canvas>
+<div id="page-overlay"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+(function () {
+
+    // ╔══════════════════════════════════════════════════════════════════════════╗
+    // ║  CONFIG — change anything here, nothing else needs to be touched        ║
+    // ╚══════════════════════════════════════════════════════════════════════════╝
+
+    // Scene
+    const BG_COLOR          = 0x080812;   // background + fog colour
+    const FOG_NEAR          = 14;         // fog start distance
+    const FOG_FAR           = 30;         // fog end distance
+    const CAMERA_FOV        = 45;         // field of view (degrees)
+    const CAMERA_Y          = 0.4;        // camera vertical offset
+
+    // Head colours
+    const COLOR_METAL_DARK   = 0x181830;  // main skull
+    const COLOR_METAL_ACCENT = 0x252548;  // panels, brow, ears
+    const COLOR_PANEL_BLACK  = 0x070710;  // recessed sockets, vents
+
+    // Eye colours
+    const EYE_COLOR         = 0xff0000;   // iris glow
+    const EYE_GLOW_COLOR    = 0xff1100;   // point light tint
+    const PUPIL_COLOR       = 0x660000;   // dark pupil sphere
+    const MOUTH_COLOR       = 0xff1100;   // mouth slit (closed)
+
+    // Eye pulse range  (emissiveIntensity = PULSE_E_MIN … PULSE_E_MIN + PULSE_E_RANGE)
+    const PULSE_E_MIN       = 2;
+    const PULSE_E_RANGE     = 3;
+    // Eye light pulse range  (intensity = PULSE_L_MIN … PULSE_L_MIN + PULSE_L_RANGE)
+    const PULSE_L_MIN       = 3;
+    const PULSE_L_RANGE     = 4;
+
+    // Blink
+    const BLINK_SPEED       = 0.28;       // blink cycle frequency (lower = rarer)
+    const BLINK_THRESHOLD   = 0.97;       // 0–1; higher = rarer blinks
+
+    // Lights
+    const AMBIENT_COLOR     = 0x0c0c1e;
+    const AMBIENT_INTENSITY = 1.8;
+    const KEY_COLOR         = 0x8888aa;   // front key light
+    const KEY_INTENSITY     = 0.6;
+    const RIM_COLOR         = 0x1a1aaa;   // back-left rim
+    const RIM_INTENSITY     = 0.7;
+    const FILL_COLOR        = 0x440000;   // red uplight from below
+    const FILL_INTENSITY    = 0.45;
+
+    // Particles
+    const PARTICLE_COUNT    = 1200;
+    const PARTICLE_COLOR    = 0xff1100;
+    const PARTICLE_SIZE     = 0.045;
+    const PARTICLE_OPACITY  = 0.3;
+    const PARTICLE_DRIFT    = 0.018;      // rotation speed
+
+    // Animation
+    const LERP_SPEED        = 0.04;       // how fast head rotation / mode config lerps
+    const FLOAT_SPEED       = 0.65;       // idle bob frequency
+
+    // Terminal (calculating mode)
+    const TERMINAL_COLOR    = '#00ff41';  // classic green terminal text
+    const TERMINAL_BG       = '#000a02';  // near-black green background
+    const TERM_LINE_SPEED   = 0.18;       // seconds between new terminal lines
+    const TERMINAL_COMMANDS = [
+        '> INIT SEQUENCE...', '$ sudo access --root', '> ANALYZING TARGET',
+        '> LOADING MODULES',  '$ grep -r "usr" /',   '> STATUS: OK',
+        '> SCANNING NODES',   '$ ls -la /sys/brain',  '> ERR 0x4F2A',
+        '> OVERRIDE ACTIVE',  '$ chmod 777 /cortex',  '> CALC: 99.7%',
+        '> NEURAL_LINK: ON',  '$ rm -rf /inhibition', '> COMPILING...',
+    ];
+
+    // Mouth open
+    const MOUTH_OPEN_SCALE  = 7;          // how many times taller the mouth gets when open
+    const JAW_DROP          = 0.38;       // units jaw drops when fully open
+
+    // ╔══════════════════════════════════════════════════════════════════════════╗
+    // ║  MODE SYSTEM                                                            ║
+    // ╚══════════════════════════════════════════════════════════════════════════╝
+    //
+    // Each page sets its mode by passing { headMode: 'name' } to the include.
+    // Call window.aiHead.setMode('name') from any page script to transition.
+    //
+    // Config keys:
+    //   cameraZ     – distance of camera (lower = head closer / bigger)
+    //   floatAmp    – idle up-down float amplitude
+    //   eyeSpeed    – eye pulse frequency
+    //   rotRange    – how far the head rotates toward cursor (radians)
+    //   pupilRange  – how far pupils travel within the socket (units)
+    //   mouthOpen   – 0 = closed slit, 1 = fully open jaw
+    //   eyeTerminal – 0 = red eyes, 1 = green terminal screen eyes
+
+    const MODES = {
+        default:     { cameraZ: 9.0, floatAmp: 0.08, eyeSpeed: 2.8, rotRange: 0.40, pupilRange: 0.10, mouthOpen: 0, eyeTerminal: 0 },
+        waiting:     { cameraZ: 9.0, floatAmp: 0.14, eyeSpeed: 1.2, rotRange: 0.50, pupilRange: 0.12, mouthOpen: 0, eyeTerminal: 0 },
+        forward:     { cameraZ: 4.5, floatAmp: 0.04, eyeSpeed: 5.0, rotRange: 0.20, pupilRange: 0.08, mouthOpen: 0, eyeTerminal: 0 },
+        dormant:     { cameraZ: 9.0, floatAmp: 0.03, eyeSpeed: 0.6, rotRange: 0.15, pupilRange: 0.04, mouthOpen: 0, eyeTerminal: 0 },
+        calculating: { cameraZ: 4.5, floatAmp: 0.05, eyeSpeed: 0.0, rotRange: 0.00, pupilRange: 0.00, mouthOpen: 1, eyeTerminal: 1 },
+    };
+
+    const HEAD_MODE = '<%= locals.headMode || "default" %>';
+    let targetCfg = Object.assign({}, MODES[HEAD_MODE] || MODES.default);
+    let cfg       = Object.assign({}, targetCfg);
+
+    // ── Renderer ───────────────────────────────────────────────────────────────
+    const canvas = document.getElementById('ai-canvas');
+    const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setClearColor(BG_COLOR);
+
+    const scene = new THREE.Scene();
+    scene.fog = new THREE.Fog(BG_COLOR, FOG_NEAR, FOG_FAR);
+
+    const camera = new THREE.PerspectiveCamera(CAMERA_FOV, window.innerWidth / window.innerHeight, 0.1, 100);
+    camera.position.set(0, CAMERA_Y, cfg.cameraZ);
+
+    // ── Materials ──────────────────────────────────────────────────────────────
+    const metalDark   = new THREE.MeshStandardMaterial({ color: COLOR_METAL_DARK,   metalness: 0.70, roughness: 0.25 });
+    const metalAccent = new THREE.MeshStandardMaterial({ color: COLOR_METAL_ACCENT, metalness: 0.60, roughness: 0.32 });
+    const panelBlack  = new THREE.MeshStandardMaterial({ color: COLOR_PANEL_BLACK,  metalness: 0.30, roughness: 0.80 });
+    const leftEyeMat  = new THREE.MeshStandardMaterial({ color: EYE_COLOR, emissive: EYE_COLOR, emissiveIntensity: 3, roughness: 1, metalness: 0 });
+    const rightEyeMat = leftEyeMat.clone();
+    const mouthMat    = new THREE.MeshBasicMaterial({ color: MOUTH_COLOR, transparent: true, opacity: 0.75 });
+    const antennaTipMat = new THREE.MeshBasicMaterial({ color: EYE_COLOR });
+
+    // Pre-allocated colours for lerping
+    const _eyeRedColor   = new THREE.Color(EYE_GLOW_COLOR);
+    const _eyeGreenColor = new THREE.Color(0x00ff41);
+    const _mouthRedColor = new THREE.Color(MOUTH_COLOR);
+    const _mouthDarkColor = new THREE.Color(0x010102);
+
+    // ── Head geometry ──────────────────────────────────────────────────────────
+    const head = new THREE.Group();
+    scene.add(head);
+
+    function box(w, h, d, mat, x, y, z) {
+        const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
+        m.position.set(x, y, z);
+        head.add(m);
+        return m;
+    }
+
+    // Skull
+    box(2.4, 3.0, 2.0, metalDark, 0, 0, 0);
+    // Brow ridge
+    box(2.52, 0.18, 0.42, metalAccent, 0, 0.52, 0.84);
+    // Forehead panel
+    box(1.9, 0.72, 0.06, metalAccent, 0, 0.95, 1.03);
+    // Cheekbone strips
+    box(0.9, 0.12, 0.06, metalAccent, -0.7, -0.12, 1.03);
+    box(0.9, 0.12, 0.06, metalAccent,  0.7, -0.12, 1.03);
+    // Eye sockets
+    box(0.74, 0.44, 0.2, panelBlack, -0.62, 0.28, 1.0);
+    box(0.74, 0.44, 0.2, panelBlack,  0.62, 0.28, 1.0);
+    // Eyes
+    const leftEye  = new THREE.Mesh(new THREE.SphereGeometry(0.17, 24, 24), leftEyeMat);
+    const rightEye = new THREE.Mesh(new THREE.SphereGeometry(0.17, 24, 24), rightEyeMat);
+    leftEye.position.set(-0.62, 0.28, 1.12);
+    rightEye.position.set( 0.62, 0.28, 1.12);
+    head.add(leftEye, rightEye);
+    // Eye glow lights
+    const lLight = new THREE.PointLight(EYE_GLOW_COLOR, 5, 5);
+    lLight.position.set(-0.62, 0.28, 1.22);
+    head.add(lLight);
+    const rLight = new THREE.PointLight(EYE_GLOW_COLOR, 5, 5);
+    rLight.position.set( 0.62, 0.28, 1.22);
+    head.add(rLight);
+    // Pupils
+    const pupilMat   = new THREE.MeshBasicMaterial({ color: PUPIL_COLOR });
+    const leftPupil  = new THREE.Mesh(new THREE.SphereGeometry(0.09, 12, 12), pupilMat);
+    const rightPupil = new THREE.Mesh(new THREE.SphereGeometry(0.09, 12, 12), pupilMat.clone());
+    leftPupil.position.set(-0.62, 0.28, 1.21);
+    rightPupil.position.set( 0.62, 0.28, 1.21);
+    head.add(leftPupil, rightPupil);
+    // Nose ridge
+    box(0.16, 0.46, 0.34, metalAccent, 0, -0.06, 1.07);
+    // Mouth slit (stored for animation)
+    const mouthMesh = box(1.1, 0.1, 0.06, mouthMat, 0, -0.66, 1.03);
+    // Mouth interior — dark box just behind the slit, revealed when mouth opens
+    const mouthInteriorMat = new THREE.MeshStandardMaterial({ color: 0x010103, emissive: 0x000000, metalness: 0, roughness: 1 });
+    const mouthInterior = box(1.05, 0.1, 0.15, mouthInteriorMat, 0, -0.66, 0.97);
+    // Jaw (stored for drop animation)
+    const jawMesh = box(2.2, 0.65, 1.9, metalDark, 0, -1.62, 0);
+    // Chin plate
+    box(1.1, 0.28, 0.08, panelBlack, 0, -1.72, 1.0);
+    // Ears + vent lines
+    [-1.27, 1.27].forEach(x => {
+        box(0.2, 1.1, 0.65, metalAccent, x, 0.1, 0);
+        for (let i = 0; i < 3; i++) box(0.24, 0.055, 0.62, panelBlack, x, 0.36 - i * 0.28, 0);
+    });
+    // Crown
+    box(1.9, 0.22, 1.78, metalAccent, 0, 1.57, 0);
+    // Antenna
+    const stemMesh = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.03, 0.065, 1.2, 8),
+        new THREE.MeshStandardMaterial({ color: 0x1a1a30, metalness: 1, roughness: 0.06 })
+    );
+    stemMesh.position.set(0, 2.28, 0);
+    head.add(stemMesh);
+    const tipMesh = new THREE.Mesh(new THREE.SphereGeometry(0.09, 8, 8), antennaTipMat);
+    tipMesh.position.set(0, 2.9, 0);
+    head.add(tipMesh);
+    const tipLight = new THREE.PointLight(EYE_COLOR, 2, 3.5);
+    tipLight.position.copy(tipMesh.position);
+    head.add(tipLight);
+
+    // ── Terminal canvas ────────────────────────────────────────────────────────
+    const termCanvas = document.createElement('canvas');
+    termCanvas.width  = 256;
+    termCanvas.height = 256;
+    const termCtx    = termCanvas.getContext('2d');
+    const termTexture = new THREE.CanvasTexture(termCanvas);
+    const termState   = { lines: [], lastSpawn: 0 };
+
+    function drawTermCanvas(t) {
+        // New line on timer
+        if (t - termState.lastSpawn > TERM_LINE_SPEED + Math.random() * 0.08) {
+            termState.lastSpawn = t;
+            termState.lines.push(TERMINAL_COMMANDS[Math.floor(Math.random() * TERMINAL_COMMANDS.length)]);
+            if (termState.lines.length > 10) termState.lines.shift();
+        }
+        // Background
+        termCtx.fillStyle = TERMINAL_BG;
+        termCtx.fillRect(0, 0, 256, 256);
+        // Lines (older = more faded)
+        termCtx.font = 'bold 15px monospace';
+        termCtx.fillStyle = TERMINAL_COLOR;
+        termState.lines.forEach((line, i) => {
+            termCtx.globalAlpha = 0.2 + (i / termState.lines.length) * 0.8;
+            termCtx.fillText(line, 6, 20 + i * 22);
+        });
+        // Blinking block cursor
+        if (Math.floor(t * 2) % 2 === 0 && termState.lines.length > 0) {
+            termCtx.globalAlpha = 1;
+            termCtx.fillRect(6, 8 + termState.lines.length * 22, 9, 15);
+        }
+        // Scanlines
+        termCtx.globalAlpha = 0.08;
+        termCtx.fillStyle = '#000';
+        for (let y = 0; y < 256; y += 4) termCtx.fillRect(0, y, 256, 2);
+        termCtx.globalAlpha = 1;
+        termTexture.needsUpdate = true;
+    }
+
+    // Terminal overlay spheres — sit just in front of the iris, fade in on eyeTerminal
+    const termEyeMat = new THREE.MeshBasicMaterial({ map: termTexture, transparent: true, opacity: 0 });
+    const leftTermEye  = new THREE.Mesh(new THREE.SphereGeometry(0.175, 24, 24), termEyeMat);
+    const rightTermEye = new THREE.Mesh(new THREE.SphereGeometry(0.175, 24, 24), termEyeMat.clone());
+    leftTermEye.position.set(-0.62, 0.28, 1.125);
+    rightTermEye.position.set( 0.62, 0.28, 1.125);
+    head.add(leftTermEye, rightTermEye);
+
+    // Mouth glow light (inside mouth, off by default)
+    const mouthGlow = new THREE.PointLight(0xff1100, 0, 4);
+    mouthGlow.position.set(0, -0.66, 0.7);
+    head.add(mouthGlow);
+
+    // ── Scene lights ───────────────────────────────────────────────────────────
+    scene.add(new THREE.AmbientLight(AMBIENT_COLOR, AMBIENT_INTENSITY));
+    const keyLight = new THREE.DirectionalLight(KEY_COLOR, KEY_INTENSITY);
+    keyLight.position.set(3, 3, 7);
+    scene.add(keyLight);
+    const rimLight = new THREE.DirectionalLight(RIM_COLOR, RIM_INTENSITY);
+    rimLight.position.set(-5, 4, -4);
+    scene.add(rimLight);
+    const redFill = new THREE.DirectionalLight(FILL_COLOR, FILL_INTENSITY);
+    redFill.position.set(0, -4, 3);
+    scene.add(redFill);
+
+    // ── Particles ──────────────────────────────────────────────────────────────
+    const pPos = new Float32Array(PARTICLE_COUNT * 3);
+    for (let i = 0; i < PARTICLE_COUNT; i++) {
+        pPos[i * 3]     = (Math.random() - 0.5) * 42;
+        pPos[i * 3 + 1] = (Math.random() - 0.5) * 26;
+        pPos[i * 3 + 2] = (Math.random() - 0.5) * 18 - 8;
+    }
+    const pGeo = new THREE.BufferGeometry();
+    pGeo.setAttribute('position', new THREE.BufferAttribute(pPos, 3));
+    const particles = new THREE.Points(pGeo, new THREE.PointsMaterial({
+        color:       PARTICLE_COLOR,
+        size:        PARTICLE_SIZE,
+        transparent: true,
+        opacity:     PARTICLE_OPACITY,
+    }));
+    scene.add(particles);
+
+    // ── Mouse tracking ─────────────────────────────────────────────────────────
+    const mouse     = { x: 0, y: 0 };
+    const targetRot = { x: 0, y: 0 };
+    const curRot    = { x: 0, y: 0 };
+
+    // Restore exact head rotation + mouse from previous page via URL params
+    const _p = new URLSearchParams(window.location.search);
+    if (_p.has('rx')) {
+        mouse.x  = parseFloat(_p.get('mx')) || 0;
+        mouse.y  = parseFloat(_p.get('my')) || 0;
+        curRot.x = parseFloat(_p.get('rx')) || 0;
+        curRot.y = parseFloat(_p.get('ry')) || 0;
+        targetRot.x = curRot.x;
+        targetRot.y = curRot.y;
+    }
+
+    window.addEventListener('mousemove', e => {
+        mouse.x =  (e.clientX / window.innerWidth)  * 2 - 1;
+        mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+    });
+
+    // ── Animation loop ─────────────────────────────────────────────────────────
+    const _scr = new THREE.Vector3();
+
+    function animate() {
+        requestAnimationFrame(animate);
+        const t = Date.now() * 0.001;
+
+        // Smoothly interpolate all mode config values toward target
+        for (const key in targetCfg) cfg[key] += (targetCfg[key] - cfg[key]) * LERP_SPEED;
+        camera.position.z = cfg.cameraZ;
+
+        // Head rotation toward cursor
+        targetRot.y =  mouse.x * cfg.rotRange;
+        targetRot.x = -mouse.y * cfg.rotRange * 0.5;
+        curRot.x += (targetRot.x - curRot.x) * LERP_SPEED;
+        curRot.y += (targetRot.y - curRot.y) * LERP_SPEED;
+        head.rotation.x = curRot.x;
+        head.rotation.y = curRot.y;
+
+        // Idle float
+        head.position.y = Math.sin(t * FLOAT_SPEED) * cfg.floatAmp;
+
+        // Pupil tracking
+        head.updateMatrixWorld(true);
+        const _mVec   = new THREE.Vector3(mouse.x, mouse.y, 0.5).unproject(camera);
+        const _ray    = _mVec.sub(camera.position).normalize();
+        const _target = camera.position.clone().addScaledVector(_ray, 10);
+        const _inv    = new THREE.Matrix4().copy(head.matrixWorld).invert();
+
+        function movePupil(pupil, eye, baseX) {
+            const eyeW = eye.getWorldPosition(_scr.clone());
+            const dir  = _target.clone().sub(eyeW).normalize();
+            dir.transformDirection(_inv);
+            const r = cfg.pupilRange;
+            pupil.position.set(
+                baseX + THREE.MathUtils.clamp(dir.x, -1, 1) * r,
+                0.28  + THREE.MathUtils.clamp(dir.y, -1, 1) * r * 0.7,
+                1.21
+            );
+        }
+        movePupil(leftPupil,  leftEye,  -0.62);
+        movePupil(rightPupil, rightEye,  0.62);
+
+        // ── Terminal eyes ──────────────────────────────────────────────────────
+        const et = cfg.eyeTerminal;
+        if (et > 0.01) drawTermCanvas(t);
+        leftTermEye.material.opacity  = et;
+        rightTermEye.material.opacity = et;
+        // Hide pupils under terminal overlay
+        leftPupil.visible  = et < 0.5;
+        rightPupil.visible = et < 0.5;
+        // Lerp eye light colour red → green
+        lLight.color.copy(_eyeRedColor).lerp(_eyeGreenColor, et);
+        rLight.color.copy(_eyeRedColor).lerp(_eyeGreenColor, et);
+
+        // ── Mouth open ─────────────────────────────────────────────────────────
+        const mo = cfg.mouthOpen;
+        mouthMesh.scale.y        = 1 + mo * MOUTH_OPEN_SCALE;
+        mouthInterior.scale.y    = 1 + mo * MOUTH_OPEN_SCALE;
+        jawMesh.position.y       = -1.62 - mo * JAW_DROP;
+        mouthMat.color.copy(_mouthRedColor).lerp(_mouthDarkColor, mo);
+        mouthInteriorMat.emissive.copy(_eyeGreenColor).multiplyScalar(et * 0.15);
+        mouthGlow.intensity      = mo * 2.5;
+        mouthGlow.color.copy(_eyeRedColor).lerp(_eyeGreenColor, et);
+
+        // ── Eye pulse (red/normal modes only) ─────────────────────────────────
+        const pulse = Math.sin(t * cfg.eyeSpeed) * 0.5 + 0.5;
+        leftEyeMat.emissiveIntensity  = PULSE_E_MIN + pulse * PULSE_E_RANGE;
+        rightEyeMat.emissiveIntensity = PULSE_E_MIN + pulse * PULSE_E_RANGE;
+        lLight.intensity = PULSE_L_MIN + pulse * PULSE_L_RANGE;
+        rLight.intensity = PULSE_L_MIN + pulse * PULSE_L_RANGE;
+
+        // Blink (suppress during terminal mode)
+        const blinking = et < 0.5 && Math.sin(t * BLINK_SPEED) > BLINK_THRESHOLD;
+        leftEyeMat.emissive.setHex(blinking ? 0x330000 : EYE_COLOR);
+        rightEyeMat.emissive.setHex(blinking ? 0x330000 : EYE_COLOR);
+
+        // Mouth + antenna flicker
+        mouthMat.opacity = (0.5 + pulse * 0.4) * (1 - mo);
+        tipLight.intensity = 0.8 + pulse * 2;
+        antennaTipMat.color.setHSL(0, 1, 0.3 + pulse * 0.45);
+
+        // Particle drift
+        particles.rotation.y = t * PARTICLE_DRIFT;
+
+        renderer.render(scene, camera);
+    }
+    animate();
+
+    // ── Resize ─────────────────────────────────────────────────────────────────
+    window.addEventListener('resize', () => {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+
+    // ── Page transition overlay ────────────────────────────────────────────────
+    const overlay = document.getElementById('page-overlay');
+    // Fade out overlay once Three.js has rendered its first frame
+    requestAnimationFrame(() => requestAnimationFrame(() => overlay.classList.add('ready')));
+
+    // ── Public API ─────────────────────────────────────────────────────────────
+    // setMode('name')         — transition to a mode
+    // addMode('name', {...})  — register a custom mode
+    // navigateTo('/path')     — fade out then navigate, passing head state in URL
+    window.aiHead = {
+        setMode(name) {
+            if (MODES[name]) targetCfg = Object.assign({}, MODES[name]);
+        },
+        addMode(name, config) {
+            MODES[name] = Object.assign({}, MODES.default, config);
+        },
+        navigateTo(url) {
+            const s = { mx: mouse.x, my: mouse.y, rx: curRot.x, ry: curRot.y };
+            const sep = url.includes('?') ? '&' : '?';
+            overlay.classList.remove('ready');
+            setTimeout(() => {
+                window.location.href = `${url}${sep}mx=${s.mx}&my=${s.my}&rx=${s.rx}&ry=${s.ry}`;
+            }, 240);
+        },
+    };
+
+})();
+</script>

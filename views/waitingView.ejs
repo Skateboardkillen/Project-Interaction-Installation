@@ -1,10 +1,19 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <title>Dynamic Express App</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Welcome</title>
+    <link rel="stylesheet" href="/css/theme.css">
 </head>
 <body>
-    <h1>Welcome back, <%= username %>!</h1> 
-    <p>Today is <%= date %>.</p>
+
+    <%- include('partials/ai-head', { headMode: 'waiting' }) %>
+
+    <div class="card">
+        <h1>Welcome back, <%= username %>!</h1>
+        <p>Today is <%= date %>.</p>
+    </div>
+
 </body>
 </html>

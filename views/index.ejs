@@ -1,20 +1,25 @@
-<!-- public/index.html -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>My Themeable App</title>
-    <!-- Link your theme file here -->
     <link rel="stylesheet" href="/css/theme.css">
 </head>
 <body>
 
-    <div class="card">
-        <h1>Theme works!</h1>
-        <p>Yeah AI interaction app wow</p>
-        <button class="btn-primary">Click</button>
+    <%- include('partials/ai-head') %>
+
+    <div class="screen-bottom">
+        <button class="btn-start" id="startBtn">Start Installation</button>
     </div>
+
+    <script>
+        document.getElementById('startBtn').addEventListener('click', () => {
+            window.aiHead.setMode('forward');
+            window.aiHead.navigateTo('/installation-explanation');
+        });
+    </script>
 
 </body>
 </html>

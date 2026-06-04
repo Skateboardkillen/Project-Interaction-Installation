@@ -2,32 +2,27 @@
 
 /* 1. DEFINE YOUR VARIABLES */
 :root {
-    /* Brand Colors */
-    --primary-color: #4f46e5;       /* Indigo */
-    --primary-hover: #4338ca;       /* Darker Indigo */
-    --accent-color: #06b6d4;        /* Cyan */
+    --primary-color: #cc0000;
+    --primary-hover: #ff1111;
+    --accent-color: #ff4444;
 
-    /* Neutral Backgrounds */
-    --bg-main: #f8fafc;             /* Light gray/blue canvas */
-    --bg-card: #ffffff;             /* Pure white for containers */
-    
-    /* Typography Colors */
-    --text-main: #0f172a;           /* Dark slate for headings */
-    --text-muted: #475569;          /* Medium gray for body paragraphs */
-    --text-on-primary: #ffffff;     /* Text color inside primary buttons */
+    --bg-main: #080812;
+    --bg-card: rgba(12, 12, 28, 0.88);
 
-    /* Layout & Borders */
-    --border-color: #e2e8f0;        /* Light grey lines */
-    --radius-md: 8px;               /* Consistent rounding for buttons/cards */
+    --text-main: #e8e8f0;
+    --text-muted: #8888aa;
+    --text-on-primary: #ffffff;
+
+    --border-color: rgba(200, 0, 0, 0.25);
+    --radius-md: 8px;
     --radius-lg: 12px;
-    --shadow-sm: 0 1px 3px rgba(0,0,0,0.1);
-    --shadow-md: 0 4px 6px -1px rgba(0,0,0,0.1);
+    --shadow-sm: 0 1px 3px rgba(0,0,0,0.6);
+    --shadow-md: 0 4px 24px rgba(200, 0, 0, 0.18);
 
-    /* Fonts */
     --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
 }
 
-/* 2. APPLY THE VARIABLES globally so everything updates dynamically */
+/* 2. APPLY THE VARIABLES globally */
 body {
     background-color: var(--bg-main);
     color: var(--text-muted);
@@ -42,7 +37,32 @@ h1, h2, h3 {
     margin-top: 0;
 }
 
-/* Example UI components using the theme variables */
+/* Page-transition overlay — starts opaque, fades out on load, fades in on leave */
+#page-overlay {
+    position: fixed;
+    inset: 0;
+    background: var(--bg-main);
+    z-index: 1000;
+    pointer-events: none;
+    opacity: 1;
+    transition: opacity 0.22s ease;
+}
+#page-overlay.ready {
+    opacity: 0;
+}
+
+/* Full-screen background canvas for the 3D AI head */
+#ai-canvas {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: -1;
+    display: block;
+    pointer-events: none;
+}
+
 .card {
     background-color: var(--bg-card);
     border: 1px solid var(--border-color);
@@ -50,6 +70,7 @@ h1, h2, h3 {
     padding: 1.5rem;
     box-shadow: var(--shadow-md);
     max-width: 400px;
+    backdrop-filter: blur(8px);
 }
 
 .btn-primary {
@@ -60,9 +81,74 @@ h1, h2, h3 {
     border-radius: var(--radius-md);
     cursor: pointer;
     font-weight: 500;
-    transition: background-color 0.2s ease;
+    transition: background-color 0.2s ease, box-shadow 0.2s ease;
 }
 
 .btn-primary:hover {
     background-color: var(--primary-hover);
+    box-shadow: 0 0 12px rgba(255, 0, 0, 0.5);
+}
+
+/* Centered full-screen overlay layout */
+.screen-center {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 1.2rem;
+    z-index: 10;
+    pointer-events: none;
+}
+
+.screen-center > * {
+    pointer-events: auto;
+}
+
+/* Bottom-center overlay layout */
+.screen-bottom {
+    position: fixed;
+    bottom: 2.5rem;
+    left: 0;
+    right: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1.2rem;
+    z-index: 10;
+    pointer-events: none;
+}
+
+.screen-bottom > * {
+    pointer-events: auto;
+}
+
+/* Large start button */
+.btn-start {
+    font-family: var(--font-sans);
+    font-size: 1.1rem;
+    font-weight: 600;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--text-main);
+    background: rgba(10, 10, 24, 0.55);
+    border: 1px solid rgba(200, 0, 0, 0.35);
+    border-radius: var(--radius-md);
+    padding: 0.9rem 2.8rem;
+    cursor: pointer;
+    backdrop-filter: blur(10px);
+    transition: background 0.25s ease, border-color 0.25s ease,
+                box-shadow 0.25s ease, color 0.25s ease, transform 0.15s ease;
+}
+
+.btn-start:hover {
+    background: rgba(160, 0, 0, 0.25);
+    border-color: rgba(255, 0, 0, 0.65);
+    box-shadow: 0 0 32px rgba(255, 0, 0, 0.25), 0 0 8px rgba(255, 0, 0, 0.15) inset;
+    color: #fff;
+}
+
+.btn-start:active {
+    transform: scale(0.97);
 }
