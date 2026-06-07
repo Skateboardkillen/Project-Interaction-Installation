@@ -12,8 +12,9 @@ app.set('views', path.join(__dirname, 'views'));
 app.use(express.static(path.join(__dirname, 'public')));
 
 // ── File upload (multer) ───────────────────────────────────────────────────
-const uploadDir = path.join(__dirname, 'uploads');
-if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir);
+// /tmp is the only writable path on Vercel (and works fine locally too)
+const uploadDir = '/tmp/uploads';
+try { fs.mkdirSync(uploadDir, { recursive: true }); } catch {}
 
 const storage = multer.diskStorage({
     destination: (req, file, cb) => cb(null, uploadDir),
@@ -32,14 +33,9 @@ const upload = multer({
     },
 });
 
-// ── SSE: notify the upload page when a photo arrives ──────────────────────
-const uploadClients = [];
-
-function broadcastUpload(data) {
-    const payload = `data: ${JSON.stringify(data)}\n\n`;
-    uploadClients.forEach(client => client.write(payload));
-    uploadClients.length = 0; // clear after broadcast
-}
+// ── Upload state (polling replaces SSE — works on serverless) ─────────────
+// Stored in module-level memory; survives across requests on a warm instance.
+let latestUpload = null;
 
 // ── Routes ─────────────────────────────────────────────────────────────────
 app.get('/', (req, res) => {
@@ -77,26 +73,19 @@ app.get('/mobile-upload', (req, res) => {
 // Receive uploaded photo from phone
 app.post('/upload/submit', upload.single('formPhoto'), (req, res) => {
     if (!req.file) return res.status(400).json({ error: 'No file received' });
-    broadcastUpload({ filename: req.file.filename, path: req.file.path });
+    latestUpload = { filename: req.file.filename, path: req.file.path, ts: Date.now() };
     res.json({ ok: true, filename: req.file.filename });
 });
 
-// SSE endpoint — desktop upload page listens here
-app.get('/upload/events', (req, res) => {
-    res.setHeader('Content-Type',  'text/event-stream');
-    res.setHeader('Cache-Control', 'no-cache');
-    res.setHeader('Connection',    'keep-alive');
-    res.flushHeaders();
+// Polling endpoint — desktop page calls this every 2 s
+app.get('/upload/status', (req, res) => {
+    res.json(latestUpload || { pending: true });
+});
 
-    // Keep-alive ping every 20 s
-    const ping = setInterval(() => res.write(': ping\n\n'), 20000);
-
-    uploadClients.push(res);
-    req.on('close', () => {
-        clearInterval(ping);
-        const i = uploadClients.indexOf(res);
-        if (i !== -1) uploadClients.splice(i, 1);
-    });
+// Clear upload state (called when desktop page moves on)
+app.post('/upload/clear', (req, res) => {
+    latestUpload = null;
+    res.json({ ok: true });
 });
 
 // ── Start ──────────────────────────────────────────────────────────────────

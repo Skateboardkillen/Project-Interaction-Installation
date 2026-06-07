@@ -172,30 +172,40 @@
     </div>
 
     <script>
-        // Listen for upload via Server-Sent Events
-        const evtSource = new EventSource('/upload/events');
+        // Poll /upload/status every 2 s until a photo arrives
+        let pollDone = false;
 
-        evtSource.onmessage = (e) => {
-            const data = JSON.parse(e.data);
-            if (!data.filename) return;
+        async function pollStatus() {
+            if (pollDone) return;
+            try {
+                const res  = await fetch('/upload/status');
+                const data = await res.json();
 
-            evtSource.close();
+                if (data.filename) {
+                    pollDone = true;
 
-            // Visual feedback
-            document.getElementById('status').classList.add('received');
-            document.getElementById('status-text').textContent = 'UPLOAD RECEIVED';
-            document.getElementById('qrFrame').classList.add('received');
+                    // Visual feedback
+                    document.getElementById('status').classList.add('received');
+                    document.getElementById('status-text').textContent = 'UPLOAD RECEIVED';
+                    document.getElementById('qrFrame').classList.add('received');
 
-            // Transition out after a short celebration moment
-            setTimeout(() => {
-                document.querySelectorAll('.ui-layer').forEach(el => el.classList.add('hidden'));
-                window.aiHead.wanderTo(0, 0);
-                setTimeout(() => {
-                    window.aiHead.setMode('forward');
-                    window.aiHead.navigateTo('/');  // replace with next step when ready
-                }, 1000);
-            }, 1800);
-        };
+                    // Clear server state then transition
+                    await fetch('/upload/clear', { method: 'POST' });
+
+                    setTimeout(() => {
+                        document.querySelectorAll('.ui-layer').forEach(el => el.classList.add('hidden'));
+                        setTimeout(() => {
+                            window.aiHead.setMode('forward');
+                            window.aiHead.navigateTo('/');  // replace with next step when ready
+                        }, 1000);
+                    }, 1800);
+
+                    return;
+                }
+            } catch {}
+            setTimeout(pollStatus, 2000);
+        }
+        pollStatus();
 
         // Head sits centered between text and QR code, in calculating state
         window.aiHead.setOffset(0, 0);
