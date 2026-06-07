@@ -5,20 +5,123 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Installation</title>
     <link rel="stylesheet" href="/css/theme.css">
+    <link rel="stylesheet" href="/css/terminal-chat.css">
 </head>
 <body>
 
     <%- include('partials/ai-head', { headMode: 'forward' }) %>
 
-    <div class="screen-center">
-        <div class="card">
-            <h1>Installation</h1>
-            <p>Explanation goes here.</p>
-        </div>
-    </div>
+    <style>
+        #terminal-chat-container {
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 10;
+        }
+
+        @keyframes eye-illuminate {
+            0%, 100% {
+                box-shadow:
+                    inset 0 0 12px rgba(0, 255, 65, 0.12),
+                    0 0 28px rgba(0, 255, 65, 0.25),
+                    0 0 60px rgba(0, 255, 65, 0.10);
+                border-color: rgba(0, 255, 65, 0.40);
+            }
+            50% {
+                box-shadow:
+                    inset 0 0 24px rgba(0, 255, 65, 0.22),
+                    0 0 55px rgba(0, 255, 65, 0.45),
+                    0 0 110px rgba(0, 255, 65, 0.18);
+                border-color: rgba(0, 255, 65, 0.70);
+            }
+        }
+
+        #terminal-chat-container.illuminated .terminal-chat {
+            animation: eye-illuminate 2.2s ease-in-out infinite;
+        }
+
+        /* Choice options rendered after typing completes */
+        #terminal-output .terminal-choice::before {
+            content: '' !important; /* suppress the default '> ' prefix */
+        }
+        #terminal-output .terminal-choice {
+            margin-top: 0.3rem;
+            cursor: pointer;
+            color: #00ff41;
+            transition: color 0.15s ease, text-shadow 0.15s ease;
+        }
+        #terminal-output .terminal-choice:hover {
+            color: #ffffff;
+            text-shadow: 0 0 10px rgba(0, 255, 65, 0.9);
+        }
+        #terminal-output .terminal-choice-sep::before {
+            content: '' !important;
+        }
+    </style>
+
+    <%- include('partials/terminal-chat') %>
 
     <script>
-        setTimeout(() => window.aiHead.setMode('calculating'), 50);
+        setTimeout(() => {
+            window.aiHead.setMode('calculating');
+
+            setTimeout(() => {
+                window.aiHead.setMode('displaying');
+                const termContainer = document.getElementById('terminal-chat-container');
+                termContainer.style.opacity = '1';
+                setTimeout(() => termContainer.classList.add('illuminated'), 600);
+
+                const messages = [
+                    'Explanation for installation supposed to be here...',
+                ];
+
+                window.aiTerminalChat.speak(messages, () => {
+                    const outputEl = document.getElementById('terminal-output');
+
+                    // Blank separator line
+                    const sep = document.createElement('div');
+                    sep.className = 'terminal-choice-sep';
+                    outputEl.appendChild(sep);
+
+                    const choices = [
+                        { key: '1', label: 'TAKE THE APPLICATION', href: '/application', angry: false },
+                        { key: '2', label: 'CANCEL',               href: '/',            angry: true  },
+                    ];
+
+                    function choose(href, angry) {
+                        document.removeEventListener('keydown', onKey);
+                        termContainer.style.opacity = '0';
+                        if (angry) {
+                            window.aiHead.setMode('angry');
+                            setTimeout(() => window.aiHead.navigateTo(href), 1000);
+                        } else {
+                            window.aiHead.setMode('calculating');
+                            setTimeout(() => window.aiHead.navigateTo(href), 1200);
+                        }
+                    }
+
+                    choices.forEach(({ key, label, href, angry }) => {
+                        const el = document.createElement('div');
+                        el.className = 'terminal-choice';
+                        el.textContent = `[${key}]  ${label}`;
+                        el.addEventListener('click', () => choose(href, angry));
+                        outputEl.appendChild(el);
+                    });
+
+                    outputEl.scrollTop = outputEl.scrollHeight;
+
+                    // Keyboard shortcuts: press 1 or 2
+                    function onKey(e) {
+                        const choice = choices.find(c => c.key === e.key);
+                        if (choice) choose(choice.href, choice.angry);
+                    }
+                    document.addEventListener('keydown', onKey);
+                });
+            }, 1800);
+        }, 400);
     </script>
 
 </body>

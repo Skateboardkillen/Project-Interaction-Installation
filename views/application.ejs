@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Apply Now</title>
+    <title>Application</title>
     <link rel="stylesheet" href="/css/theme.css">
     <style>
         body { padding: 0; overflow: hidden; }
@@ -53,7 +53,7 @@
         }
 
         /* Main centred content */
-        .index-content {
+        .page-content {
             position: fixed;
             inset: 0;
             display: flex;
@@ -61,12 +61,11 @@
             align-items: center;
             justify-content: center;
             z-index: 10;
-            gap: 0;
             text-align: center;
         }
 
-        .index-title {
-            font-size: clamp(4rem, 13vw, 9.5rem);
+        .page-title {
+            font-size: clamp(3rem, 10vw, 7.5rem);
             font-weight: 900;
             color: #ffffff;
             letter-spacing: -0.02em;
@@ -74,15 +73,41 @@
             margin: 0 0 1rem;
         }
 
-        .index-subtitle {
+        .page-subtitle {
             font-size: 0.92rem;
-            color: rgba(255, 255, 255, 0.45);
-            max-width: 340px;
-            line-height: 1.65;
-            margin: 0 0 1.6rem;
+            color: rgba(255, 255, 255, 0.38);
+            margin: 0 0 1.4rem;
+            letter-spacing: 0.06em;
         }
 
-        .btn-apply {
+        /* Countdown */
+        .countdown {
+            font-family: 'Courier New', Courier, monospace;
+            font-size: clamp(3.5rem, 8vw, 6rem);
+            font-weight: 700;
+            letter-spacing: 0.06em;
+            color: var(--primary-color);
+            text-shadow: 0 0 24px rgba(200, 0, 0, 0.5);
+            margin: 0 0 1.8rem;
+            transition: color 0.5s ease, text-shadow 0.5s ease;
+        }
+        .countdown.urgent {
+            color: #ff2222;
+            text-shadow: 0 0 32px rgba(255, 0, 0, 0.8);
+            animation: countdown-pulse 0.6s ease-in-out infinite alternate;
+        }
+        @keyframes countdown-pulse {
+            from { opacity: 1; }
+            to   { opacity: 0.55; }
+        }
+
+        .btn-row {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+        }
+
+        .btn-primary-action {
             font-family: var(--font-sans);
             font-size: 0.88rem;
             font-weight: 700;
@@ -95,17 +120,28 @@
             cursor: pointer;
             transition: background 0.2s ease, transform 0.1s ease;
         }
-        .btn-apply:hover  { background: var(--primary-hover); }
-        .btn-apply:active { transform: scale(0.97); }
+        .btn-primary-action:hover  { background: var(--primary-hover); }
+        .btn-primary-action:active { transform: scale(0.97); }
 
-        /* Fade out all UI overlay elements on start */
-        .ui-layer {
-            transition: opacity 0.6s ease;
+        .btn-back {
+            font-family: var(--font-sans);
+            font-size: 0.82rem;
+            font-weight: 500;
+            letter-spacing: 0.06em;
+            color: rgba(255, 255, 255, 0.4);
+            background: transparent;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 3px;
+            padding: 0.7rem 1.6rem;
+            cursor: pointer;
+            transition: color 0.2s ease, border-color 0.2s ease, transform 0.1s ease;
         }
-        .ui-layer.hidden {
-            opacity: 0;
-            pointer-events: none;
-        }
+        .btn-back:hover  { color: rgba(255,255,255,0.75); border-color: rgba(255,255,255,0.35); }
+        .btn-back:active { transform: scale(0.97); }
+
+        /* Fade out all UI layers on action */
+        .ui-layer { transition: opacity 0.6s ease; }
+        .ui-layer.hidden { opacity: 0; pointer-events: none; }
     </style>
 </head>
 <body>
@@ -119,14 +155,18 @@
 
     <div class="label-bar label-bar-top ui-layer">
         <div class="line"></div>
-        <span>HM_2.Semester_I+D</span>
+        <span>HM_2.Semester_I+D &mdash; APPLICATION</span>
         <div class="line"></div>
     </div>
 
-    <div class="index-content ui-layer">
-        <h1 class="index-title">APPLY NOW!</h1>
-        <p class="index-subtitle">Reflect on your language privilege through an application process. Pick a form and press start.</p>
-        <button class="btn-apply" id="startBtn">Start</button>
+    <div class="page-content ui-layer">
+        <h1 class="page-title">FILL OUT<br>THE FORM.</h1>
+        <p class="page-subtitle">Complete the form and press finished when done.</p>
+        <div class="countdown" id="countdown">5:00</div>
+        <div class="btn-row">
+            <button class="btn-primary-action" id="finishedBtn">Form Finished</button>
+            <button class="btn-back" id="backBtn">Go Back</button>
+        </div>
     </div>
 
     <div class="label-bar label-bar-bottom ui-layer">
@@ -136,29 +176,55 @@
     </div>
 
     <script>
-        document.getElementById('startBtn').addEventListener('click', () => {
-            // Fade out all UI overlays and glide the head to center
+        // ── Countdown timer ───────────────────────────────────────────────────────
+        const TOTAL_SECONDS = 5 * 60;
+        let secondsLeft = TOTAL_SECONDS;
+        let timerDone = false;
+        const countdownEl = document.getElementById('countdown');
+
+        function updateCountdown() {
+            const m = Math.floor(secondsLeft / 60);
+            const s = secondsLeft % 60;
+            countdownEl.textContent = `${m}:${String(s).padStart(2, '0')}`;
+            if (secondsLeft <= 60) countdownEl.classList.add('urgent');
+            if (secondsLeft <= 0) {
+                timerDone = true;
+                fadeAndNavigate('/');
+                return;
+            }
+            secondsLeft--;
+            setTimeout(updateCountdown, 1000);
+        }
+        updateCountdown();
+
+        function fadeAndNavigate(href) {
             document.querySelectorAll('.ui-layer').forEach(el => el.classList.add('hidden'));
             window.aiHead.wanderTo(0, 0);
-
             setTimeout(() => {
                 window.aiHead.setMode('forward');
-                window.aiHead.navigateTo('/installation-explanation');
+                window.aiHead.navigateTo(href);
             }, 1000);
+        }
+
+        document.getElementById('finishedBtn').addEventListener('click', () => {
+            fadeAndNavigate('/upload');
         });
 
-        // Alternates strictly left / right; Y is randomised each time
+        document.getElementById('backBtn').addEventListener('click', () => {
+            fadeAndNavigate('/');
+        });
+
+        // Wander left / right like the index page
         let currentSide = null;
         function pickPosition() {
             currentSide = (currentSide === 'left') ? 'right'
                         : (currentSide === 'right') ? 'left'
-                        : (Math.random() < 0.5 ? 'left' : 'right'); // first call: random
+                        : (Math.random() < 0.5 ? 'left' : 'right');
             const x = (currentSide === 'left' ? -1 : 1) * (5.0 + Math.random() * 0.8);
             const y = (Math.random() - 0.5) * 2.4;
             return [x, y];
         }
 
-        // Snap to a random starting spot, then wander on a randomised timer
         window.aiHead.setOffset(...pickPosition());
 
         function scheduleWander() {

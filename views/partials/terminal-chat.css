@@ -1,0 +1,39 @@
+/* public/css/terminal-chat.css */
+
+.terminal-chat {
+    font-family: 'Courier New', Courier, monospace;
+    color: #00ff41; /* Classic terminal green */
+    text-shadow: 0 0 5px rgba(0, 255, 65, 0.5); /* Text glow */
+    background-color: #000; /* Solid black background */
+    border: 1px solid rgba(0, 255, 65, 0.2);
+    box-shadow: inset 0 0 10px rgba(0, 255, 65, 0.15), 0 0 10px rgba(0, 255, 65, 0.1); /* Inner and outer glow */
+    padding: 1rem;
+    border-radius: 4px;
+    min-height: 220px;
+    text-transform: uppercase;
+    font-size: 0.9rem;
+    line-height: 1.6;
+    margin-top: 1rem;
+}
+
+.terminal-chat #terminal-cursor {
+    display: inline-block;
+    background-color: #00ff41;
+    box-shadow: 0 0 8px #00ff41; /* Cursor glow */
+    width: 0.6em;
+    height: 1.2em;
+    margin-left: 2px;
+    animation: terminal-blink 1s step-end infinite;
+    vertical-align: bottom;
+}
+
+@keyframes terminal-blink {
+    from, to {
+        background-color: transparent;
+        box-shadow: none;
+    }
+    50% {
+        background-color: #00ff41;
+        box-shadow: 0 0 8px #00ff41;
+    }
+}

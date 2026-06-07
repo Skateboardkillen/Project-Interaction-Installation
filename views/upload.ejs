@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Upload Form</title>
+    <link rel="stylesheet" href="/css/theme.css">
+    <style>
+        body { padding: 0; overflow: hidden; }
+
+        .corner {
+            position: fixed;
+            width: 22px;
+            height: 22px;
+            z-index: 20;
+        }
+        .corner::before, .corner::after {
+            content: '';
+            position: absolute;
+            background: rgba(255, 255, 255, 0.45);
+        }
+        .corner::before { width: 1px; height: 100%; left: 50%; transform: translateX(-50%); }
+        .corner::after  { height: 1px; width: 100%; top: 50%;  transform: translateY(-50%); }
+        .corner-tl { top: 1.6rem; left: 1.6rem; }
+        .corner-tr { top: 1.6rem; right: 1.6rem; }
+        .corner-bl { bottom: 1.6rem; left: 1.6rem; }
+        .corner-br { bottom: 1.6rem; right: 1.6rem; }
+
+        .label-bar {
+            position: fixed;
+            left: 0; right: 0;
+            display: flex;
+            align-items: center;
+            z-index: 20;
+            padding: 0 2.8rem;
+        }
+        .label-bar-top    { top: 1.68rem; }
+        .label-bar-bottom { bottom: 1.68rem; }
+        .label-bar .line  { flex: 1; height: 1px; background: rgba(255,255,255,0.22); }
+        .label-bar span {
+            padding: 0 1rem;
+            font-size: 0.7rem;
+            letter-spacing: 0.14em;
+            color: rgba(255,255,255,0.38);
+            white-space: nowrap;
+            font-family: var(--font-sans);
+        }
+
+        .page-content {
+            position: fixed;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 5rem;
+            z-index: 10;
+            padding: 0 6rem;
+        }
+
+        /* Left: text */
+        .upload-text { flex: 1; }
+        .page-title {
+            font-size: clamp(2.8rem, 6vw, 5.5rem);
+            font-weight: 900;
+            color: #ffffff;
+            letter-spacing: -0.02em;
+            line-height: 1.05;
+            margin: 0 0 1rem;
+        }
+        .page-subtitle {
+            font-size: 0.95rem;
+            color: rgba(255,255,255,0.42);
+            line-height: 1.65;
+            margin: 0 0 2rem;
+            max-width: 320px;
+        }
+
+        /* Waiting / done states */
+        .status {
+            display: flex;
+            align-items: center;
+            gap: 0.7rem;
+            font-size: 0.82rem;
+            letter-spacing: 0.1em;
+            color: rgba(255,255,255,0.35);
+            font-family: 'Courier New', monospace;
+        }
+        .status-dot {
+            width: 8px; height: 8px;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.25);
+            animation: waiting-pulse 1.4s ease-in-out infinite;
+        }
+        @keyframes waiting-pulse {
+            0%, 100% { opacity: 0.25; transform: scale(1); }
+            50%       { opacity: 1;    transform: scale(1.35); }
+        }
+        .status.received .status-dot {
+            background: #00ff41;
+            animation: none;
+        }
+        .status.received { color: #00ff41; }
+
+        /* Right: QR code */
+        .qr-wrap {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 1rem;
+        }
+        .qr-frame {
+            padding: 14px;
+            border: 1px solid rgba(0,255,65,0.3);
+            border-radius: 6px;
+            box-shadow: 0 0 32px rgba(0,255,65,0.12), inset 0 0 16px rgba(0,255,65,0.06);
+            background: #000;
+            transition: box-shadow 0.5s ease, border-color 0.5s ease;
+        }
+        .qr-frame.received {
+            border-color: rgba(0,255,65,0.7);
+            box-shadow: 0 0 60px rgba(0,255,65,0.35), inset 0 0 24px rgba(0,255,65,0.12);
+        }
+        .qr-frame img { display: block; width: 220px; height: 220px; }
+        .qr-label {
+            font-size: 0.7rem;
+            letter-spacing: 0.12em;
+            color: rgba(255,255,255,0.28);
+            font-family: 'Courier New', monospace;
+        }
+
+        .ui-layer { transition: opacity 0.6s ease; }
+        .ui-layer.hidden { opacity: 0; pointer-events: none; }
+    </style>
+</head>
+<body>
+
+    <%- include('partials/ai-head') %>
+
+    <div class="corner corner-tl ui-layer"></div>
+    <div class="corner corner-tr ui-layer"></div>
+    <div class="corner corner-bl ui-layer"></div>
+    <div class="corner corner-br ui-layer"></div>
+
+    <div class="label-bar label-bar-top ui-layer">
+        <div class="line"></div>
+        <span>HM_2.Semester_I+D &mdash; FORM UPLOAD</span>
+        <div class="line"></div>
+    </div>
+
+    <div class="page-content ui-layer">
+        <div class="upload-text">
+            <h1 class="page-title">SCAN &amp;<br>UPLOAD<br>YOUR FORM.</h1>
+            <p class="page-subtitle">Take an image of the completed form with your phone and upload it using the QR code.</p>
+            <div class="status" id="status">
+                <div class="status-dot"></div>
+                <span id="status-text">WAITING FOR UPLOAD...</span>
+            </div>
+        </div>
+
+        <div class="qr-wrap">
+            <div class="qr-frame" id="qrFrame">
+                <img src="<%= qrDataUrl %>" alt="Upload QR code">
+            </div>
+            <span class="qr-label">SCAN WITH PHONE CAMERA</span>
+        </div>
+    </div>
+
+    <div class="label-bar label-bar-bottom ui-layer">
+        <div class="line"></div>
+        <span>ANA &mdash; VINCENT &mdash; ANGELINA &mdash; AMELIE &mdash; KONST</span>
+        <div class="line"></div>
+    </div>
+
+    <script>
+        // Listen for upload via Server-Sent Events
+        const evtSource = new EventSource('/upload/events');
+
+        evtSource.onmessage = (e) => {
+            const data = JSON.parse(e.data);
+            if (!data.filename) return;
+
+            evtSource.close();
+
+            // Visual feedback
+            document.getElementById('status').classList.add('received');
+            document.getElementById('status-text').textContent = 'UPLOAD RECEIVED';
+            document.getElementById('qrFrame').classList.add('received');
+
+            // Transition out after a short celebration moment
+            setTimeout(() => {
+                document.querySelectorAll('.ui-layer').forEach(el => el.classList.add('hidden'));
+                window.aiHead.wanderTo(0, 0);
+                setTimeout(() => {
+                    window.aiHead.setMode('forward');
+                    window.aiHead.navigateTo('/');  // replace with next step when ready
+                }, 1000);
+            }, 1800);
+        };
+
+        // Head sits centered between text and QR code, in calculating state
+        window.aiHead.setOffset(0, 0);
+        window.aiHead.setMode('calculating');
+    </script>
+
+</body>
+</html>

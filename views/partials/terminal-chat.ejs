@@ -1,0 +1,55 @@
+<div id="terminal-chat-container" class="terminal-chat">
+    <div id="terminal-output"></div>
+    <div id="terminal-cursor" style="display: none;"></div>
+</div>
+
+<script>
+(function () {
+    const outputEl = document.getElementById('terminal-output');
+    const cursorEl = document.getElementById('terminal-cursor');
+    if (!outputEl || !cursorEl) return;
+
+    let queue = [];
+    let isTyping = false;
+    let onCompleteCallback = null;
+
+    const CHAR_DELAY = 40;
+    const LINE_DELAY = 700;
+
+    function type() {
+        if (queue.length === 0) {
+            isTyping = false;
+            cursorEl.style.display = 'inline-block';
+            if (onCompleteCallback) onCompleteCallback();
+            return;
+        }
+
+        isTyping = true;
+        cursorEl.style.display = 'none';
+        const line = queue.shift();
+        const lineEl = document.createElement('div');
+        outputEl.appendChild(lineEl);
+
+        typeCharacter(lineEl, line, 0);
+    }
+
+    function typeCharacter(lineEl, text, index) {
+        if (index < text.length) {
+            lineEl.textContent += text.charAt(index);
+            setTimeout(() => typeCharacter(lineEl, text, index + 1), CHAR_DELAY);
+        } else {
+            outputEl.scrollTop = outputEl.scrollHeight; // Scroll to bottom
+            setTimeout(type, LINE_DELAY);
+        }
+    }
+
+    window.aiTerminalChat = {
+        speak(lines, onComplete) {
+            if (!Array.isArray(lines)) lines = [lines];
+            queue.push(...lines);
+            onCompleteCallback = onComplete || null;
+            if (!isTyping) type();
+        }
+    };
+})();
+</script>

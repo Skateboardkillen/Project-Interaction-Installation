@@ -49,7 +49,7 @@
     const FILL_INTENSITY    = 0.45;
 
     // Particles
-    const PARTICLE_COUNT    = 1200;
+    const PARTICLE_COUNT    = 1600;
     const PARTICLE_COLOR    = 0xff1100;
     const PARTICLE_SIZE     = 0.045;
     const PARTICLE_OPACITY  = 0.3;
@@ -58,6 +58,7 @@
     // Animation
     const LERP_SPEED        = 0.04;       // how fast head rotation / mode config lerps
     const FLOAT_SPEED       = 0.65;       // idle bob frequency
+    const WANDER_SPEED      = 0.016;      // how fast the head flies between positions (0=instant, 1=slow)
 
     // Terminal (calculating mode)
     const TERMINAL_COLOR    = '#00ff41';  // classic green terminal text
@@ -75,6 +76,15 @@
     const MOUTH_OPEN_SCALE  = 7;          // how many times taller the mouth gets when open
     const JAW_DROP          = 0.38;       // units jaw drops when fully open
 
+    // Projection cones (displaying mode)
+    const PROJ_RADIUS        = 0.28;       // cone base radius (outer halo)
+    const PROJ_LENGTH        = 4;          // cone length
+    const PROJ_TARGET_Z      = 4.5;        // world-space Z where cones converge (near camera / terminal)
+    const PROJ_OPACITY       = 0.20;       // max outer cone opacity
+    const PROJ_FLICKER       = 0.06;       // opacity flicker amount (0 = steady, 1 = heavy flicker)
+    const PROJ_INNER_RADIUS  = 0.055;      // inner core beam radius
+    const PROJ_INNER_OPACITY = 0.50;       // inner core opacity (brighter than outer halo)
+
     // ╔══════════════════════════════════════════════════════════════════════════╗
     // ║  MODE SYSTEM                                                            ║
     // ╚══════════════════════════════════════════════════════════════════════════╝
@@ -89,14 +99,17 @@
     //   rotRange    – how far the head rotates toward cursor (radians)
     //   pupilRange  – how far pupils travel within the socket (units)
     //   mouthOpen   – 0 = closed slit, 1 = fully open jaw
+    //   projecting  - 0 = no projection, 1 = full projection cones
     //   eyeTerminal – 0 = red eyes, 1 = green terminal screen eyes
 
     const MODES = {
-        default:     { cameraZ: 9.0, floatAmp: 0.08, eyeSpeed: 2.8, rotRange: 0.40, pupilRange: 0.10, mouthOpen: 0, eyeTerminal: 0 },
-        waiting:     { cameraZ: 9.0, floatAmp: 0.14, eyeSpeed: 1.2, rotRange: 0.50, pupilRange: 0.12, mouthOpen: 0, eyeTerminal: 0 },
-        forward:     { cameraZ: 4.5, floatAmp: 0.04, eyeSpeed: 5.0, rotRange: 0.20, pupilRange: 0.08, mouthOpen: 0, eyeTerminal: 0 },
-        dormant:     { cameraZ: 9.0, floatAmp: 0.03, eyeSpeed: 0.6, rotRange: 0.15, pupilRange: 0.04, mouthOpen: 0, eyeTerminal: 0 },
-        calculating: { cameraZ: 4.5, floatAmp: 0.05, eyeSpeed: 0.0, rotRange: 0.00, pupilRange: 0.00, mouthOpen: 1, eyeTerminal: 1 },
+        default:     { cameraZ: 9.0, floatAmp: 0.08, eyeSpeed: 2.8, rotRange: 0.40, pupilRange: 0.10, mouthOpen: 0,    eyeTerminal: 0, projecting: 0, shakeAmp: 0,    lerpSpeed: 0    },
+        waiting:     { cameraZ: 9.0, floatAmp: 0.14, eyeSpeed: 1.2, rotRange: 0.50, pupilRange: 0.12, mouthOpen: 0,    eyeTerminal: 0, projecting: 0, shakeAmp: 0,    lerpSpeed: 0    },
+        forward:     { cameraZ: 4.5, floatAmp: 0.04, eyeSpeed: 5.0, rotRange: 0.20, pupilRange: 0.08, mouthOpen: 0,    eyeTerminal: 0, projecting: 0, shakeAmp: 0,    lerpSpeed: 0    },
+        dormant:     { cameraZ: 9.0, floatAmp: 0.03, eyeSpeed: 0.6, rotRange: 0.15, pupilRange: 0.04, mouthOpen: 0,    eyeTerminal: 0, projecting: 0, shakeAmp: 0,    lerpSpeed: 0    },
+        calculating: { cameraZ: 4.5, floatAmp: 0.05, eyeSpeed: 0.0, rotRange: 0.00, pupilRange: 0.00, mouthOpen: 1,    eyeTerminal: 1, projecting: 0, shakeAmp: 0,    lerpSpeed: 0    },
+        displaying:  { cameraZ: 5.0, floatAmp: 0.06, eyeSpeed: 0.7, rotRange: 0.00, pupilRange: 0.00, mouthOpen: 0.4,  eyeTerminal: 0, projecting: 1, shakeAmp: 0,    lerpSpeed: 0    },
+        angry:       { cameraZ: 5.5, floatAmp: 0.18, eyeSpeed: 6.0, rotRange: 0.65, pupilRange: 0.16, mouthOpen: 0.2,  eyeTerminal: 0, projecting: 0, shakeAmp: 0.13, lerpSpeed: 0.18 },
     };
 
     const HEAD_MODE = '<%= locals.headMode || "default" %>';
@@ -257,6 +270,44 @@
     mouthGlow.position.set(0, -0.66, 0.7);
     head.add(mouthGlow);
 
+    // ── Projection cones ───────────────────────────────────────────────────────
+    const projectionMaterial = new THREE.MeshBasicMaterial({
+        color: 0x00ff41,
+        transparent: true,
+        opacity: 0,
+        side: THREE.DoubleSide,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
+    });
+    const projectionGeom = new THREE.ConeGeometry(PROJ_RADIUS, PROJ_LENGTH, 48, 1, true);
+    projectionGeom.translate(0, PROJ_LENGTH / 2, 0);
+    projectionGeom.rotateX(Math.PI / 2);
+
+    const leftProjection = new THREE.Mesh(projectionGeom, projectionMaterial);
+    const rightProjection = new THREE.Mesh(projectionGeom, projectionMaterial.clone());
+    leftProjection.visible  = false;
+    rightProjection.visible = false;
+    // Added to scene (not head) so world-space lookAt can track screen centre as head bobs
+    scene.add(leftProjection, rightProjection);
+
+    // Inner bright-core beams — narrow, brighter — give a core+halo projector look
+    const innerProjGeom = new THREE.ConeGeometry(PROJ_INNER_RADIUS, PROJ_LENGTH, 24, 1, true);
+    innerProjGeom.translate(0, PROJ_LENGTH / 2, 0);
+    innerProjGeom.rotateX(Math.PI / 2);
+    const innerProjMat = new THREE.MeshBasicMaterial({
+        color: 0xaaffdd,
+        transparent: true,
+        opacity: 0,
+        side: THREE.DoubleSide,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
+    });
+    const leftInnerProj  = new THREE.Mesh(innerProjGeom, innerProjMat);
+    const rightInnerProj = new THREE.Mesh(innerProjGeom, innerProjMat.clone());
+    leftInnerProj.visible  = false;
+    rightInnerProj.visible = false;
+    scene.add(leftInnerProj, rightInnerProj);
+
     // ── Scene lights ───────────────────────────────────────────────────────────
     scene.add(new THREE.AmbientLight(AMBIENT_COLOR, AMBIENT_INTENSITY));
     const keyLight = new THREE.DirectionalLight(KEY_COLOR, KEY_INTENSITY);
@@ -291,6 +342,9 @@
     const targetRot = { x: 0, y: 0 };
     const curRot    = { x: 0, y: 0 };
 
+    // ── Wander (smooth camera offset) ──────────────────────────────────────────
+    const wander = { tx: 0, ty: 0, cx: 0, cy: 0 };
+
     // Restore exact head rotation + mouse from previous page via URL params
     const _p = new URLSearchParams(window.location.search);
     if (_p.has('rx')) {
@@ -308,19 +362,36 @@
     });
 
     // ── Animation loop ─────────────────────────────────────────────────────────
-    const _scr = new THREE.Vector3();
+    const _scr     = new THREE.Vector3();
+    const _eyeW    = new THREE.Vector3();
+    const _headNDC = new THREE.Vector3();
+    const _projTgt = new THREE.Vector3(0, 0, PROJ_TARGET_Z);
 
     function animate() {
         requestAnimationFrame(animate);
         const t = Date.now() * 0.001;
 
         // Smoothly interpolate all mode config values toward target
-        for (const key in targetCfg) cfg[key] += (targetCfg[key] - cfg[key]) * LERP_SPEED;
+        // lerpSpeed overrides the global rate when non-zero (e.g. angry snaps in fast)
+        const _lerp = targetCfg.lerpSpeed || LERP_SPEED;
+        for (const key in targetCfg) cfg[key] += (targetCfg[key] - cfg[key]) * _lerp;
         camera.position.z = cfg.cameraZ;
 
-        // Head rotation toward cursor
-        targetRot.y =  mouse.x * cfg.rotRange;
-        targetRot.x = -mouse.y * cfg.rotRange * 0.5;
+        // Wander: smoothly fly camera offset toward target position
+        wander.cx += (wander.tx - wander.cx) * WANDER_SPEED;
+        wander.cy += (wander.ty - wander.cy) * WANDER_SPEED;
+        camera.position.x = wander.cx;
+        camera.position.y = CAMERA_Y + wander.cy;
+
+        // Head rotation toward cursor — relative to head's current screen position
+        // so tracking feels natural regardless of where the head has wandered.
+        // updateMatrixWorld is required before project() — the renderer only
+        // refreshes matrixWorldInverse at the end of the frame, so on frame 0
+        // (and after any camera position change) it would be stale, causing NaN.
+        camera.updateMatrixWorld();
+        _headNDC.copy(head.position).project(camera);
+        targetRot.y =  (mouse.x - _headNDC.x) * cfg.rotRange;
+        targetRot.x = -(mouse.y - _headNDC.y) * cfg.rotRange * 0.5;
         curRot.x += (targetRot.x - curRot.x) * LERP_SPEED;
         curRot.y += (targetRot.y - curRot.y) * LERP_SPEED;
         head.rotation.x = curRot.x;
@@ -328,6 +399,13 @@
 
         // Idle float
         head.position.y = Math.sin(t * FLOAT_SPEED) * cfg.floatAmp;
+
+        // Shake — multiple high-freq sines at coprime rates give an organic tremor.
+        // shakeAmp lerps automatically when the mode changes, so it winds down smoothly.
+        const s = cfg.shakeAmp;
+        head.position.x = (Math.sin(t * 47.0) + Math.sin(t * 31.3) * 0.45 + Math.sin(t * 73.1) * 0.25) * s;
+        head.position.y += (Math.sin(t * 53.7) + Math.sin(t * 23.9) * 0.5) * s * 0.4;
+        head.rotation.z  = (Math.sin(t * 41.2) + Math.sin(t * 67.4) * 0.35) * s * 0.35;
 
         // Pupil tracking
         head.updateMatrixWorld(true);
@@ -363,7 +441,9 @@
         rLight.color.copy(_eyeRedColor).lerp(_eyeGreenColor, et);
 
         // ── Mouth open ─────────────────────────────────────────────────────────
-        const mo = cfg.mouthOpen;
+        // Angry chatter: rapid open/close oscillation on top of the base value
+        const mouthChatter = Math.abs(Math.sin(t * 9.5)) * cfg.shakeAmp * 2.5;
+        const mo = cfg.mouthOpen + mouthChatter;
         mouthMesh.scale.y        = 1 + mo * MOUTH_OPEN_SCALE;
         mouthInterior.scale.y    = 1 + mo * MOUTH_OPEN_SCALE;
         jawMesh.position.y       = -1.62 - mo * JAW_DROP;
@@ -372,17 +452,71 @@
         mouthGlow.intensity      = mo * 2.5;
         mouthGlow.color.copy(_eyeRedColor).lerp(_eyeGreenColor, et);
 
-        // ── Eye pulse (red/normal modes only) ─────────────────────────────────
         const pulse = Math.sin(t * cfg.eyeSpeed) * 0.5 + 0.5;
-        leftEyeMat.emissiveIntensity  = PULSE_E_MIN + pulse * PULSE_E_RANGE;
-        rightEyeMat.emissiveIntensity = PULSE_E_MIN + pulse * PULSE_E_RANGE;
-        lLight.intensity = PULSE_L_MIN + pulse * PULSE_L_RANGE;
-        rLight.intensity = PULSE_L_MIN + pulse * PULSE_L_RANGE;
 
-        // Blink (suppress during terminal mode)
-        const blinking = et < 0.5 && Math.sin(t * BLINK_SPEED) > BLINK_THRESHOLD;
-        leftEyeMat.emissive.setHex(blinking ? 0x330000 : EYE_COLOR);
-        rightEyeMat.emissive.setHex(blinking ? 0x330000 : EYE_COLOR);
+        // ── Projection & Eye Appearance ────────────────────────────────────────
+        const p = cfg.projecting;
+        const isProjecting = p > 0.01;
+        leftProjection.visible  = isProjecting;
+        rightProjection.visible = isProjecting;
+        leftInnerProj.visible   = isProjecting;
+        rightInnerProj.visible  = isProjecting;
+
+        if (isProjecting) {
+            // Use a fixed calm rate — independent of cfg.eyeSpeed so the lerp from
+            // a fast previous mode (e.g. forward eyeSpeed=5) doesn't cause flicker.
+            const projPulse = Math.sin(t * 0.7) * 0.5 + 0.5;
+            const flicker = 1 - PROJ_FLICKER + (Math.sin(t * 7) * 0.5 + 0.5) * PROJ_FLICKER;
+            const opacity = p * PROJ_OPACITY * flicker;
+            leftProjection.material.opacity = opacity;
+            rightProjection.material.opacity = opacity;
+
+            // Track screen centre dynamically — reposition each frame to eye world pos
+            // lookAt makes local -Z face the target, so pass the mirror point so +Z faces it
+            leftEye.getWorldPosition(_eyeW);
+            _eyeW.z += 0.1;
+            leftProjection.position.copy(_eyeW);
+            leftProjection.lookAt(_eyeW.multiplyScalar(2).sub(_projTgt));
+
+            rightEye.getWorldPosition(_eyeW);
+            _eyeW.z += 0.1;
+            rightProjection.position.copy(_eyeW);
+            rightProjection.lookAt(_eyeW.multiplyScalar(2).sub(_projTgt));
+
+            // Inner core beams — copy orientation from outer cones
+            leftInnerProj.position.copy(leftProjection.position);
+            leftInnerProj.quaternion.copy(leftProjection.quaternion);
+            leftInnerProj.material.opacity  = p * PROJ_INNER_OPACITY * flicker;
+            rightInnerProj.position.copy(rightProjection.position);
+            rightInnerProj.quaternion.copy(rightProjection.quaternion);
+            rightInnerProj.material.opacity = p * PROJ_INNER_OPACITY * flicker;
+
+            // Override eye appearance — blazing green source
+            leftEyeMat.emissive.copy(_eyeGreenColor);
+            rightEyeMat.emissive.copy(_eyeGreenColor);
+            leftEyeMat.color.copy(_eyeGreenColor);
+            rightEyeMat.color.copy(_eyeGreenColor);
+            leftEyeMat.emissiveIntensity  = p * 6 + projPulse * 4;
+            rightEyeMat.emissiveIntensity = p * 6 + projPulse * 4;
+            lLight.intensity = (10 + projPulse * 12) * p;
+            rLight.intensity = (10 + projPulse * 12) * p;
+            lLight.color.copy(_eyeGreenColor);
+            rLight.color.copy(_eyeGreenColor);
+            lLight.distance = 8 + p * 12;
+            rLight.distance = 8 + p * 12;
+            leftPupil.visible = false;
+            rightPupil.visible = false;
+        } else {
+            // Default eye pulse and blink
+            leftEyeMat.emissiveIntensity  = PULSE_E_MIN + pulse * PULSE_E_RANGE;
+            rightEyeMat.emissiveIntensity = PULSE_E_MIN + pulse * PULSE_E_RANGE;
+            lLight.intensity = PULSE_L_MIN + pulse * PULSE_L_RANGE;
+            rLight.intensity = PULSE_L_MIN + pulse * PULSE_L_RANGE;
+
+            const blinking = et < 0.5 && Math.sin(t * BLINK_SPEED) > BLINK_THRESHOLD;
+            leftEyeMat.emissive.setHex(blinking ? 0x330000 : EYE_COLOR);
+            rightEyeMat.emissive.setHex(blinking ? 0x330000 : EYE_COLOR);
+        }
 
         // Mouth + antenna flicker
         mouthMat.opacity = (0.5 + pulse * 0.4) * (1 - mo);
@@ -418,6 +552,16 @@
         },
         addMode(name, config) {
             MODES[name] = Object.assign({}, MODES.default, config);
+        },
+        setOffset(x, y) {
+            wander.tx = x;       wander.cx = x;
+            wander.ty = y || 0;  wander.cy = y || 0;
+            camera.position.x = x;
+            camera.position.y = CAMERA_Y + (y || 0);
+        },
+        wanderTo(x, y) {
+            wander.tx = x;
+            wander.ty = y || 0;
         },
         navigateTo(url) {
             const s = { mx: mouse.x, my: mouse.y, rx: curRot.x, ry: curRot.y };

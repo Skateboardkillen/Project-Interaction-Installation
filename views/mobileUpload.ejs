@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+    <title>Upload Form Photo</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            background: #080812;
+            color: #e8e8f0;
+            font-family: system-ui, -apple-system, sans-serif;
+            min-height: 100dvh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem 1.5rem;
+            gap: 2rem;
+        }
+
+        .logo {
+            font-size: 0.7rem;
+            letter-spacing: 0.18em;
+            color: rgba(255,255,255,0.3);
+        }
+
+        .card {
+            width: 100%;
+            max-width: 420px;
+            background: rgba(12,12,28,0.9);
+            border: 1px solid rgba(200,0,0,0.2);
+            border-radius: 12px;
+            padding: 2rem 1.5rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1.4rem;
+        }
+
+        h1 {
+            font-size: 1.35rem;
+            font-weight: 800;
+            color: #fff;
+            line-height: 1.25;
+        }
+
+        p {
+            font-size: 0.9rem;
+            color: rgba(255,255,255,0.45);
+            line-height: 1.6;
+        }
+
+        /* Hidden real file input */
+        #fileInput {
+            display: none;
+        }
+
+        /* Camera / file pick button */
+        .btn-pick {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.6rem;
+            width: 100%;
+            padding: 1rem;
+            background: rgba(200,0,0,0.12);
+            border: 2px dashed rgba(200,0,0,0.4);
+            border-radius: 8px;
+            color: rgba(255,255,255,0.7);
+            font-size: 0.95rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s, border-color 0.2s;
+        }
+        .btn-pick:hover { background: rgba(200,0,0,0.22); border-color: rgba(255,0,0,0.6); }
+
+        /* Image preview */
+        #preview {
+            display: none;
+            width: 100%;
+            border-radius: 8px;
+            border: 1px solid rgba(255,255,255,0.1);
+            object-fit: cover;
+            max-height: 280px;
+        }
+        #preview.visible { display: block; }
+
+        /* Upload button */
+        .btn-upload {
+            display: none;
+            width: 100%;
+            padding: 1rem;
+            background: #cc0000;
+            color: #fff;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 700;
+            letter-spacing: 0.04em;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .btn-upload.visible { display: block; }
+        .btn-upload:hover   { background: #ff1111; }
+        .btn-upload:disabled { background: rgba(200,0,0,0.35); cursor: not-allowed; }
+
+        /* Progress / status */
+        .status {
+            font-size: 0.82rem;
+            color: rgba(255,255,255,0.4);
+            text-align: center;
+            min-height: 1.2em;
+        }
+        .status.success { color: #00ff41; font-weight: 600; }
+        .status.error   { color: #ff4444; }
+
+        /* Success screen */
+        .success-screen {
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            gap: 1rem;
+            text-align: center;
+        }
+        .success-screen.visible { display: flex; }
+        .success-icon { font-size: 3.5rem; }
+        .success-screen h2 { font-size: 1.4rem; color: #00ff41; }
+        .success-screen p  { font-size: 0.88rem; color: rgba(255,255,255,0.45); }
+    </style>
+</head>
+<body>
+
+    <span class="logo">HM_2.SEMESTER_I+D</span>
+
+    <div class="card" id="uploadCard">
+        <h1>Take an image of the form and upload here.</h1>
+        <p>Use your camera to photograph the completed form, then tap Upload to send it.</p>
+
+        <input type="file" id="fileInput" accept="image/*" capture="environment">
+
+        <label class="btn-pick" for="fileInput">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+                <circle cx="12" cy="13" r="4"/>
+            </svg>
+            Take / Choose Photo
+        </label>
+
+        <img id="preview" alt="Form preview">
+
+        <button class="btn-upload" id="uploadBtn">Upload Photo</button>
+
+        <p class="status" id="status"></p>
+
+        <div class="success-screen" id="successScreen">
+            <div class="success-icon">✓</div>
+            <h2>Photo Received!</h2>
+            <p>Your form has been uploaded successfully. You can close this page.</p>
+        </div>
+    </div>
+
+    <script>
+        const fileInput  = document.getElementById('fileInput');
+        const preview    = document.getElementById('preview');
+        const uploadBtn  = document.getElementById('uploadBtn');
+        const statusEl   = document.getElementById('status');
+        const successEl  = document.getElementById('successScreen');
+        const uploadCard = document.getElementById('uploadCard');
+
+        fileInput.addEventListener('change', () => {
+            const file = fileInput.files[0];
+            if (!file) return;
+            preview.src = URL.createObjectURL(file);
+            preview.classList.add('visible');
+            uploadBtn.classList.add('visible');
+            statusEl.textContent = '';
+        });
+
+        uploadBtn.addEventListener('click', async () => {
+            const file = fileInput.files[0];
+            if (!file) return;
+
+            uploadBtn.disabled = true;
+            statusEl.className = 'status';
+            statusEl.textContent = 'Uploading...';
+
+            const formData = new FormData();
+            formData.append('formPhoto', file);
+
+            try {
+                const res = await fetch('/upload/submit', { method: 'POST', body: formData });
+                const json = await res.json();
+
+                if (!res.ok || !json.ok) throw new Error(json.error || 'Upload failed');
+
+                // Hide card content, show success
+                preview.style.display    = 'none';
+                uploadBtn.style.display  = 'none';
+                statusEl.textContent     = '';
+                successEl.classList.add('visible');
+
+            } catch (err) {
+                statusEl.className   = 'status error';
+                statusEl.textContent = err.message || 'Something went wrong. Please try again.';
+                uploadBtn.disabled   = false;
+            }
+        });
+    </script>
+
+</body>
+</html>
