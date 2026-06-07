@@ -142,6 +142,9 @@
             fadeAndNavigate('/upload');
         });
 
+        // Clear server upload state now that we've safely landed on the result page
+        fetch('/upload/clear', { method: 'POST' });
+
         // Head centred, displaying mode to echo the projection feel
         window.aiHead.setOffset(0, 0);
         window.aiHead.setMode('displaying');

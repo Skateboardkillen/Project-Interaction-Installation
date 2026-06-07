@@ -189,9 +189,6 @@
                     document.getElementById('status-text').textContent = 'UPLOAD RECEIVED';
                     document.getElementById('qrFrame').classList.add('received');
 
-                    // Clear server state then transition
-                    await fetch('/upload/clear', { method: 'POST' });
-
                     setTimeout(() => {
                         document.querySelectorAll('.ui-layer').forEach(el => el.classList.add('hidden'));
                         setTimeout(() => {
