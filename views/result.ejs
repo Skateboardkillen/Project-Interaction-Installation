@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Uploaded Form</title>
+    <link rel="stylesheet" href="/css/theme.css">
+    <style>
+        body { padding: 0; overflow: hidden; }
+
+        .corner {
+            position: fixed;
+            width: 22px; height: 22px;
+            z-index: 20;
+        }
+        .corner::before, .corner::after {
+            content: ''; position: absolute;
+            background: rgba(255,255,255,0.45);
+        }
+        .corner::before { width: 1px; height: 100%; left: 50%; transform: translateX(-50%); }
+        .corner::after  { height: 1px; width: 100%; top: 50%;  transform: translateY(-50%); }
+        .corner-tl { top: 1.6rem; left: 1.6rem; }
+        .corner-tr { top: 1.6rem; right: 1.6rem; }
+        .corner-bl { bottom: 1.6rem; left: 1.6rem; }
+        .corner-br { bottom: 1.6rem; right: 1.6rem; }
+
+        .label-bar {
+            position: fixed; left: 0; right: 0;
+            display: flex; align-items: center;
+            z-index: 20; padding: 0 2.8rem;
+        }
+        .label-bar-top    { top: 1.68rem; }
+        .label-bar-bottom { bottom: 1.68rem; }
+        .label-bar .line  { flex: 1; height: 1px; background: rgba(255,255,255,0.22); }
+        .label-bar span {
+            padding: 0 1rem; font-size: 0.7rem;
+            letter-spacing: 0.14em; color: rgba(255,255,255,0.38);
+            white-space: nowrap; font-family: var(--font-sans);
+        }
+
+        .page-content {
+            position: fixed; inset: 0;
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+            gap: 1.6rem; z-index: 10;
+        }
+
+        .page-title {
+            font-size: clamp(1.6rem, 4vw, 2.8rem);
+            font-weight: 900; color: #fff;
+            letter-spacing: -0.02em; margin: 0;
+        }
+
+        .image-frame {
+            border: 1px solid rgba(200,0,0,0.3);
+            border-radius: 6px;
+            box-shadow: 0 0 40px rgba(200,0,0,0.12);
+            overflow: hidden;
+            max-width: min(680px, 80vw);
+            max-height: 55vh;
+        }
+        .image-frame img {
+            display: block; width: 100%; height: 100%;
+            object-fit: contain;
+        }
+
+        .btn-row {
+            display: flex; gap: 1rem;
+        }
+        .btn-primary-action {
+            font-family: var(--font-sans); font-size: 0.88rem;
+            font-weight: 700; letter-spacing: 0.06em;
+            color: #fff; background: var(--primary-color);
+            border: none; border-radius: 3px;
+            padding: 0.7rem 2rem; cursor: pointer;
+            transition: background 0.2s ease, transform 0.1s ease;
+        }
+        .btn-primary-action:hover  { background: var(--primary-hover); }
+        .btn-primary-action:active { transform: scale(0.97); }
+        .btn-back {
+            font-family: var(--font-sans); font-size: 0.82rem;
+            font-weight: 500; letter-spacing: 0.06em;
+            color: rgba(255,255,255,0.4); background: transparent;
+            border: 1px solid rgba(255,255,255,0.15); border-radius: 3px;
+            padding: 0.7rem 1.6rem; cursor: pointer;
+            transition: color 0.2s, border-color 0.2s, transform 0.1s;
+        }
+        .btn-back:hover  { color: rgba(255,255,255,0.75); border-color: rgba(255,255,255,0.35); }
+        .btn-back:active { transform: scale(0.97); }
+
+        .ui-layer { transition: opacity 0.6s ease; }
+        .ui-layer.hidden { opacity: 0; pointer-events: none; }
+    </style>
+</head>
+<body>
+
+    <%- include('partials/ai-head') %>
+
+    <div class="corner corner-tl ui-layer"></div>
+    <div class="corner corner-tr ui-layer"></div>
+    <div class="corner corner-bl ui-layer"></div>
+    <div class="corner corner-br ui-layer"></div>
+
+    <div class="label-bar label-bar-top ui-layer">
+        <div class="line"></div>
+        <span>HM_2.Semester_I+D &mdash; FORM RECEIVED</span>
+        <div class="line"></div>
+    </div>
+
+    <div class="page-content ui-layer">
+        <h1 class="page-title">UPLOADED FORM</h1>
+        <div class="image-frame">
+            <img src="/uploads/<%= filename %>" alt="Uploaded form">
+        </div>
+        <div class="btn-row">
+            <button class="btn-primary-action" id="continueBtn">Continue</button>
+            <button class="btn-back" id="retakeBtn">Retake</button>
+        </div>
+    </div>
+
+    <div class="label-bar label-bar-bottom ui-layer">
+        <div class="line"></div>
+        <span>ANA &mdash; VINCENT &mdash; ANGELINA &mdash; AMELIE &mdash; KONST</span>
+        <div class="line"></div>
+    </div>
+
+    <script>
+        function fadeAndNavigate(href) {
+            document.querySelectorAll('.ui-layer').forEach(el => el.classList.add('hidden'));
+            window.aiHead.wanderTo(0, 0);
+            setTimeout(() => {
+                window.aiHead.setMode('forward');
+                window.aiHead.navigateTo(href);
+            }, 1000);
+        }
+
+        document.getElementById('continueBtn').addEventListener('click', () => {
+            fadeAndNavigate('/');  // replace with next step when ready
+        });
+
+        document.getElementById('retakeBtn').addEventListener('click', () => {
+            fadeAndNavigate('/upload');
+        });
+
+        // Head centred, displaying mode to echo the projection feel
+        window.aiHead.setOffset(0, 0);
+        window.aiHead.setMode('displaying');
+    </script>
+
+</body>
+</html>

@@ -88,6 +88,18 @@ app.post('/upload/clear', (req, res) => {
     res.json({ ok: true });
 });
 
+// Serve uploaded images from /tmp
+app.get('/uploads/:filename', (req, res) => {
+    const file = path.join(uploadDir, path.basename(req.params.filename));
+    res.sendFile(file, err => { if (err) res.status(404).send('Not found'); });
+});
+
+// Result page — shows the uploaded image
+app.get('/result', (req, res) => {
+    if (!latestUpload) return res.redirect('/upload');
+    res.render('result', { filename: latestUpload.filename });
+});
+
 // ── Start ──────────────────────────────────────────────────────────────────
 if (require.main === module) {
     app.listen(process.env.PORT || PORT, () => {
