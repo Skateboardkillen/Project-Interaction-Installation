@@ -1,8 +1,9 @@
-const express = require('express');
-const path    = require('path');
-const multer  = require('multer');
-const QRCode  = require('qrcode');
-const fs      = require('fs');
+const express    = require('express');
+const path       = require('path');
+const multer     = require('multer');
+const QRCode     = require('qrcode');
+const fs         = require('fs');
+const { randomUUID } = require('crypto');
 
 const app  = express();
 const PORT = 3000;
@@ -35,7 +36,8 @@ const upload = multer({
 
 // ── Upload state (polling replaces SSE — works on serverless) ─────────────
 // Stored in module-level memory; survives across requests on a warm instance.
-let latestUpload = null;
+let latestUpload       = null;
+let currentSessionToken = null;
 
 // ── Routes ─────────────────────────────────────────────────────────────────
 app.get('/', (req, res) => {
@@ -55,8 +57,10 @@ app.get('/application', (req, res) => {
 });
 
 app.get('/upload', async (req, res) => {
+    currentSessionToken = randomUUID();
+    latestUpload        = null; // reset any previous upload when a new session starts
     const base      = `${req.protocol}://${req.get('host')}`;
-    const mobileUrl = `${base}/mobile-upload`;
+    const mobileUrl = `${base}/mobile-upload?token=${currentSessionToken}`;
     const qrDataUrl = await QRCode.toDataURL(mobileUrl, {
         width:           320,
         margin:          2,
@@ -65,14 +69,22 @@ app.get('/upload', async (req, res) => {
     res.render('upload', { qrDataUrl, mobileUrl });
 });
 
-// Mobile-friendly photo capture page
+// Mobile-friendly photo capture page — validate token before rendering
 app.get('/mobile-upload', (req, res) => {
-    res.render('mobileUpload');
+    const { token } = req.query;
+    if (!token || token !== currentSessionToken) {
+        return res.render('mobileUpload', { token: null, invalid: true });
+    }
+    res.render('mobileUpload', { token, invalid: false });
 });
 
 // Receive uploaded photo from phone
 app.post('/upload/submit', upload.single('formPhoto'), (req, res) => {
     if (!req.file) return res.status(400).json({ error: 'No file received' });
+    const { token } = req.body;
+    if (!token || token !== currentSessionToken) {
+        return res.status(403).json({ error: 'Invalid or expired session. Please scan the QR code again.' });
+    }
     latestUpload = { filename: req.file.filename, path: req.file.path, ts: Date.now() };
     res.json({ ok: true, filename: req.file.filename });
 });
