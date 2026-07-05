@@ -181,6 +181,28 @@
                 const statusEl  = document.getElementById('status');
                 const successEl = document.getElementById('successScreen');
 
+                // Compress image to max 1600px wide, JPEG 0.82 quality
+                // Brings a typical 6MB phone photo down to ~300-600KB
+                function compressImage(file) {
+                    return new Promise((resolve) => {
+                        const reader = new FileReader();
+                        reader.onload = (e) => {
+                            const img = new Image();
+                            img.onload = () => {
+                                const MAX = 1600;
+                                let w = img.width, h = img.height;
+                                if (w > MAX) { h = Math.round(h * MAX / w); w = MAX; }
+                                const canvas = document.createElement('canvas');
+                                canvas.width = w; canvas.height = h;
+                                canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+                                canvas.toBlob(resolve, 'image/jpeg', 0.82);
+                            };
+                            img.src = e.target.result;
+                        };
+                        reader.readAsDataURL(file);
+                    });
+                }
+
                 fileInput.addEventListener('change', () => {
                     const file = fileInput.files[0];
                     if (!file) return;
@@ -196,10 +218,14 @@
 
                     uploadBtn.disabled   = true;
                     statusEl.className   = 'status';
+                    statusEl.textContent = 'Compressing...';
+
+                    const compressed = await compressImage(file);
+
                     statusEl.textContent = 'Uploading...';
 
                     const formData = new FormData();
-                    formData.append('formPhoto', file);
+                    formData.append('formPhoto', compressed, 'form.jpg');
                     formData.append('token', SESSION_TOKEN);
 
                     try {
