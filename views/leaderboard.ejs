@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Applicant Rankings</title>
+    <link rel="stylesheet" href="/css/theme.css">
+    <style>
+        body { padding: 0; overflow: hidden; }
+
+        .corner {
+            position: fixed; width: 22px; height: 22px; z-index: 20;
+        }
+        .corner::before, .corner::after {
+            content: ''; position: absolute; background: rgba(255,255,255,0.45);
+        }
+        .corner::before { width: 1px; height: 100%; left: 50%; transform: translateX(-50%); }
+        .corner::after  { height: 1px; width: 100%; top: 50%;  transform: translateY(-50%); }
+        .corner-tl { top: 1.6rem; left: 1.6rem; }
+        .corner-tr { top: 1.6rem; right: 1.6rem; }
+        .corner-bl { bottom: 1.6rem; left: 1.6rem; }
+        .corner-br { bottom: 1.6rem; right: 1.6rem; }
+
+        .label-bar {
+            position: fixed; left: 0; right: 0;
+            display: flex; align-items: center; z-index: 20; padding: 0 2.8rem;
+        }
+        .label-bar-top    { top: 1.68rem; }
+        .label-bar-bottom { bottom: 1.68rem; }
+        .label-bar .line  { flex: 1; height: 1px; background: rgba(255,255,255,0.22); }
+        .label-bar span {
+            padding: 0 1rem; font-size: 0.7rem; letter-spacing: 0.14em;
+            color: rgba(255,255,255,0.38); white-space: nowrap; font-family: var(--font-sans);
+        }
+
+        .page-content {
+            position: fixed; inset: 0;
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: flex-start;
+            z-index: 10; padding: 4.5rem 4rem 4.5rem;
+            overflow-y: auto;
+        }
+
+        .page-header {
+            width: 100%; max-width: 780px;
+            display: flex; align-items: baseline;
+            justify-content: space-between;
+            margin-bottom: 1.8rem; flex-shrink: 0;
+        }
+        .page-title {
+            font-size: clamp(1.6rem, 4vw, 3rem);
+            font-weight: 900; color: #fff;
+            letter-spacing: -0.02em; margin: 0;
+        }
+        .entry-count {
+            font-size: 0.72rem; letter-spacing: 0.18em;
+            color: rgba(255,255,255,0.25); font-family: 'Courier New', monospace;
+        }
+
+        /* Column headers */
+        .list-header {
+            width: 100%; max-width: 780px;
+            display: grid;
+            grid-template-columns: 3rem 1fr 120px;
+            gap: 0 1.5rem;
+            padding: 0 0 0.6rem;
+            border-bottom: 1px solid rgba(255,255,255,0.08);
+            margin-bottom: 0.4rem; flex-shrink: 0;
+        }
+        .list-header span {
+            font-size: 0.62rem; letter-spacing: 0.18em;
+            color: rgba(255,255,255,0.22); font-family: 'Courier New', monospace;
+        }
+        .list-header .col-score { text-align: right; }
+
+        /* Entries */
+        .entries {
+            width: 100%; max-width: 780px;
+            display: flex; flex-direction: column; gap: 0;
+        }
+
+        .entry {
+            display: grid;
+            grid-template-columns: 3rem 1fr 120px;
+            gap: 0 1.5rem;
+            align-items: center;
+            padding: 0.9rem 0;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+            opacity: 0;
+            transform: translateY(6px);
+            transition: opacity 0.4s ease, transform 0.4s ease;
+        }
+        .entry.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        .entry:hover { background: rgba(255,255,255,0.02); }
+
+        .entry-rank {
+            font-family: 'Courier New', monospace;
+            font-size: 0.78rem; font-weight: 700;
+            color: rgba(255,255,255,0.2);
+        }
+        .entry-rank.top { color: var(--primary-color); }
+
+        .entry-info { min-width: 0; }
+        .entry-name {
+            font-size: 0.95rem; font-weight: 700;
+            color: #fff; white-space: nowrap;
+            overflow: hidden; text-overflow: ellipsis;
+            margin-bottom: 0.25rem;
+        }
+        .entry-comment {
+            font-size: 0.75rem; color: rgba(255,255,255,0.28);
+            font-style: italic; white-space: nowrap;
+            overflow: hidden; text-overflow: ellipsis;
+            font-family: var(--font-sans);
+        }
+
+        .entry-score-col {
+            display: flex; flex-direction: column;
+            align-items: flex-end; gap: 0.3rem;
+        }
+        .entry-score {
+            font-family: 'Courier New', monospace;
+            font-size: 1.4rem; font-weight: 900;
+            color: var(--primary-color);
+            line-height: 1;
+        }
+        .entry-score.top {
+            text-shadow: 0 0 20px rgba(200,0,0,0.6);
+        }
+        .entry-denom {
+            font-family: 'Courier New', monospace;
+            font-size: 0.65rem; color: rgba(255,255,255,0.2);
+        }
+        .score-bar-track {
+            height: 2px; width: 100%;
+            background: rgba(255,255,255,0.06); border-radius: 1px; overflow: hidden;
+        }
+        .score-bar-fill {
+            height: 100%; background: var(--primary-color);
+            border-radius: 1px;
+            transition: width 1s ease; width: 0;
+        }
+
+        /* Empty state */
+        .empty-state {
+            width: 100%; max-width: 780px;
+            text-align: center; padding: 4rem 0;
+            color: rgba(255,255,255,0.2);
+            font-family: 'Courier New', monospace;
+            font-size: 0.85rem; letter-spacing: 0.1em;
+        }
+
+        .back-btn {
+            position: fixed; bottom: 2.8rem; right: 3.2rem;
+            font-family: var(--font-sans); font-size: 0.8rem;
+            font-weight: 600; letter-spacing: 0.08em;
+            color: rgba(255,255,255,0.35); background: transparent;
+            border: 1px solid rgba(255,255,255,0.12); border-radius: 3px;
+            padding: 0.55rem 1.4rem; cursor: pointer; z-index: 30;
+            transition: color 0.2s, border-color 0.2s, transform 0.1s;
+        }
+        .back-btn:hover  { color: rgba(255,255,255,0.7); border-color: rgba(255,255,255,0.3); }
+        .back-btn:active { transform: scale(0.97); }
+
+        .ui-layer { transition: opacity 0.6s ease; }
+        .ui-layer.hidden { opacity: 0; pointer-events: none; }
+    </style>
+</head>
+<body>
+
+    <%- include('partials/ai-head') %>
+
+    <div class="corner corner-tl ui-layer"></div>
+    <div class="corner corner-tr ui-layer"></div>
+    <div class="corner corner-bl ui-layer"></div>
+    <div class="corner corner-br ui-layer"></div>
+
+    <div class="label-bar label-bar-top ui-layer">
+        <div class="line"></div>
+        <span>HM_2.Semester_I+D &mdash; LANGUAGE PRIVILEGE INDEX</span>
+        <div class="line"></div>
+    </div>
+
+    <div class="page-content ui-layer">
+        <div class="page-header">
+            <h1 class="page-title">APPLICANT<br>RANKINGS</h1>
+            <span class="entry-count"><%= entries.length %> APPLICANT<%= entries.length !== 1 ? 'S' : '' %></span>
+        </div>
+
+        <% if (entries.length === 0) { %>
+            <div class="empty-state">NO APPLICATIONS SUBMITTED YET</div>
+        <% } else { %>
+            <div class="list-header">
+                <span>#</span>
+                <span>APPLICANT</span>
+                <span class="col-score">SCORE</span>
+            </div>
+            <div class="entries">
+                <% entries.forEach((entry, i) => { %>
+                    <div class="entry" data-score="<%= entry.score %>" data-index="<%= i %>">
+                        <div class="entry-rank <%= i < 3 ? 'top' : '' %>">#<%= i + 1 %></div>
+                        <div class="entry-info">
+                            <div class="entry-name"><%= entry.name || 'Anonymous' %></div>
+                            <div class="entry-comment"><%= entry.comment %></div>
+                            <div class="score-bar-track" style="margin-top:0.4rem;">
+                                <div class="score-bar-fill" style="width:0%" data-width="<%= entry.score %>%"></div>
+                            </div>
+                        </div>
+                        <div class="entry-score-col">
+                            <span class="entry-score <%= i < 3 ? 'top' : '' %>"><%= entry.score %></span>
+                            <span class="entry-denom">/ 100</span>
+                        </div>
+                    </div>
+                <% }) %>
+            </div>
+        <% } %>
+    </div>
+
+    <div class="label-bar label-bar-bottom ui-layer">
+        <div class="line"></div>
+        <span>ANA &mdash; VINCENT &mdash; ANGELINA &mdash; AMELIE &mdash; KONST</span>
+        <div class="line"></div>
+    </div>
+
+    <button class="back-btn ui-layer" id="backBtn">← BACK</button>
+
+    <script>
+        // Staggered entry animation
+        const entries = document.querySelectorAll('.entry');
+        entries.forEach((el, i) => {
+            setTimeout(() => {
+                el.classList.add('visible');
+                // Animate score bar slightly after the row appears
+                setTimeout(() => {
+                    const bar = el.querySelector('.score-bar-fill');
+                    if (bar) bar.style.width = bar.dataset.width;
+                }, 200);
+            }, i * 80);
+        });
+
+        document.getElementById('backBtn').addEventListener('click', () => {
+            document.querySelectorAll('.ui-layer').forEach(el => el.classList.add('hidden'));
+            window.aiHead.wanderTo(0, 0);
+            setTimeout(() => {
+                window.aiHead.setMode('forward');
+                window.aiHead.navigateTo('/');
+            }, 1000);
+        });
+
+        window.aiHead.setOffset(0, 0);
+        window.aiHead.setMode('displaying');
+    </script>
+
+</body>
+</html>

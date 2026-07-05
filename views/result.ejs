@@ -3,19 +3,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Uploaded Form</title>
+    <title>Form Result</title>
     <link rel="stylesheet" href="/css/theme.css">
     <style>
         body { padding: 0; overflow: hidden; }
 
         .corner {
-            position: fixed;
-            width: 22px; height: 22px;
-            z-index: 20;
+            position: fixed; width: 22px; height: 22px; z-index: 20;
         }
         .corner::before, .corner::after {
-            content: ''; position: absolute;
-            background: rgba(255,255,255,0.45);
+            content: ''; position: absolute; background: rgba(255,255,255,0.45);
         }
         .corner::before { width: 1px; height: 100%; left: 50%; transform: translateX(-50%); }
         .corner::after  { height: 1px; width: 100%; top: 50%;  transform: translateY(-50%); }
@@ -26,52 +23,95 @@
 
         .label-bar {
             position: fixed; left: 0; right: 0;
-            display: flex; align-items: center;
-            z-index: 20; padding: 0 2.8rem;
+            display: flex; align-items: center; z-index: 20; padding: 0 2.8rem;
         }
         .label-bar-top    { top: 1.68rem; }
         .label-bar-bottom { bottom: 1.68rem; }
         .label-bar .line  { flex: 1; height: 1px; background: rgba(255,255,255,0.22); }
         .label-bar span {
-            padding: 0 1rem; font-size: 0.7rem;
-            letter-spacing: 0.14em; color: rgba(255,255,255,0.38);
-            white-space: nowrap; font-family: var(--font-sans);
+            padding: 0 1rem; font-size: 0.7rem; letter-spacing: 0.14em;
+            color: rgba(255,255,255,0.38); white-space: nowrap; font-family: var(--font-sans);
         }
 
         .page-content {
             position: fixed; inset: 0;
             display: flex; flex-direction: column;
             align-items: center; justify-content: center;
-            gap: 1.6rem; z-index: 10;
+            gap: 1.6rem; z-index: 10; padding: 5rem;
+        }
+
+        .applicant-name {
+            font-size: 0.72rem; letter-spacing: 0.2em;
+            color: rgba(255,255,255,0.3); font-family: 'Courier New', monospace;
+            text-align: center; text-transform: uppercase;
         }
 
         .page-title {
-            font-size: clamp(1.6rem, 4vw, 2.8rem);
+            font-size: clamp(1.4rem, 3vw, 2.2rem);
             font-weight: 900; color: #fff;
-            letter-spacing: -0.02em; margin: 0;
+            letter-spacing: -0.02em; margin: 0; text-align: center;
         }
 
-        .image-frame {
-            border: 1px solid rgba(200,0,0,0.3);
-            border-radius: 6px;
-            box-shadow: 0 0 40px rgba(200,0,0,0.12);
-            overflow: hidden;
-            max-width: min(680px, 80vw);
-            max-height: 55vh;
-        }
-        .image-frame img {
-            display: block; width: 100%; height: 100%;
-            object-fit: contain;
+        .analysis-panel {
+            display: flex; flex-direction: column;
+            gap: 1.6rem; width: 100%; max-width: 480px;
         }
 
-        .btn-row {
-            display: flex; gap: 1rem;
+        .rating-block {
+            display: flex; flex-direction: column;
+            gap: 0.5rem; align-items: center;
         }
+        .rating-label {
+            font-size: 0.68rem; letter-spacing: 0.16em;
+            color: rgba(255,255,255,0.35); font-family: 'Courier New', monospace;
+        }
+        .rating-display {
+            display: flex; align-items: baseline; gap: 0.3rem;
+        }
+        .rating-number {
+            font-size: clamp(4.5rem, 11vw, 7.5rem);
+            font-weight: 900; line-height: 1;
+            color: var(--primary-color);
+            text-shadow: 0 0 50px rgba(200,0,0,0.7);
+            font-family: 'Courier New', monospace;
+        }
+        .rating-denom {
+            font-size: 1.8rem; color: rgba(255,255,255,0.2);
+            font-family: 'Courier New', monospace;
+        }
+        .rating-na {
+            font-size: 2.5rem; font-weight: 700;
+            color: rgba(255,255,255,0.25); font-family: 'Courier New', monospace;
+        }
+
+        .score-bar-track {
+            height: 3px; background: rgba(255,255,255,0.08);
+            border-radius: 2px; overflow: hidden; width: 260px;
+        }
+        .score-bar-fill {
+            height: 100%; background: var(--primary-color);
+            box-shadow: 0 0 10px rgba(200,0,0,0.7); border-radius: 2px;
+            transition: width 1.6s cubic-bezier(0.25, 1, 0.5, 1); width: 0;
+        }
+
+        .divider { height: 1px; background: rgba(255,255,255,0.1); }
+
+        .comment-block { text-align: center; }
+        .comment-label {
+            font-size: 0.68rem; letter-spacing: 0.16em;
+            color: rgba(255,255,255,0.35); font-family: 'Courier New', monospace;
+            margin-bottom: 0.5rem;
+        }
+        .comment-text {
+            font-size: 0.95rem; color: rgba(255,255,255,0.65);
+            line-height: 1.7; margin: 0; font-style: italic;
+        }
+
+        .btn-row { display: flex; gap: 1rem; justify-content: center; }
         .btn-primary-action {
             font-family: var(--font-sans); font-size: 0.88rem;
-            font-weight: 700; letter-spacing: 0.06em;
-            color: #fff; background: var(--primary-color);
-            border: none; border-radius: 3px;
+            font-weight: 700; letter-spacing: 0.06em; color: #fff;
+            background: var(--primary-color); border: none; border-radius: 3px;
             padding: 0.7rem 2rem; cursor: pointer;
             transition: background 0.2s ease, transform 0.1s ease;
         }
@@ -103,18 +143,43 @@
 
     <div class="label-bar label-bar-top ui-layer">
         <div class="line"></div>
-        <span>HM_2.Semester_I+D &mdash; FORM RECEIVED</span>
+        <span>HM_2.Semester_I+D &mdash; LANGUAGE EVALUATION</span>
         <div class="line"></div>
     </div>
 
     <div class="page-content ui-layer">
-        <h1 class="page-title">UPLOADED FORM</h1>
-        <div class="image-frame">
-            <img src="/uploads/<%= filename %>" alt="Uploaded form">
-        </div>
-        <div class="btn-row">
-            <button class="btn-primary-action" id="continueBtn">Continue</button>
-            <button class="btn-back" id="retakeBtn">Retake</button>
+        <div class="applicant-name">APPLICANT — <%= name %></div>
+        <h1 class="page-title">AI EVALUATION</h1>
+
+        <div class="analysis-panel">
+            <div class="rating-block">
+                <div class="rating-label">LANGUAGE SCORE</div>
+                <div class="rating-display">
+                    <% if (score !== null && score !== undefined) { %>
+                        <span class="rating-number"><%= score %></span>
+                        <span class="rating-denom">/ 100</span>
+                    <% } else { %>
+                        <span class="rating-na">N / A</span>
+                    <% } %>
+                </div>
+                <% if (score !== null && score !== undefined) { %>
+                    <div class="score-bar-track">
+                        <div class="score-bar-fill" id="scoreBar"></div>
+                    </div>
+                <% } %>
+            </div>
+
+            <div class="divider"></div>
+
+            <div class="comment-block">
+                <div class="comment-label">AI ASSESSMENT</div>
+                <p class="comment-text">"<%= comment %>"</p>
+            </div>
+
+            <div class="btn-row">
+                <button class="btn-primary-action" id="leaderboardBtn">View Rankings</button>
+                <button class="btn-back" id="retakeBtn">Retake</button>
+            </div>
         </div>
     </div>
 
@@ -125,6 +190,12 @@
     </div>
 
     <script>
+        <% if (score !== null && score !== undefined) { %>
+        setTimeout(() => {
+            document.getElementById('scoreBar').style.width = '<%= score %>%';
+        }, 400);
+        <% } %>
+
         function fadeAndNavigate(href) {
             document.querySelectorAll('.ui-layer').forEach(el => el.classList.add('hidden'));
             window.aiHead.wanderTo(0, 0);
@@ -134,18 +205,15 @@
             }, 1000);
         }
 
-        document.getElementById('continueBtn').addEventListener('click', () => {
-            fadeAndNavigate('/');  // replace with next step when ready
+        document.getElementById('leaderboardBtn').addEventListener('click', () => {
+            fadeAndNavigate('/leaderboard');
         });
-
         document.getElementById('retakeBtn').addEventListener('click', () => {
             fadeAndNavigate('/upload');
         });
 
-        // Clear server upload state now that we've safely landed on the result page
         fetch('/upload/clear', { method: 'POST' });
 
-        // Head centred, displaying mode to echo the projection feel
         window.aiHead.setOffset(0, 0);
         window.aiHead.setMode('displaying');
     </script>
