@@ -214,8 +214,27 @@
 
         fetch('/upload/clear', { method: 'POST' });
 
-        window.aiHead.setOffset(0, 0);
-        window.aiHead.setMode('displaying');
+        // Wander left/right like the index page
+        let currentSide = null;
+        function pickPosition() {
+            currentSide = (currentSide === 'left') ? 'right'
+                        : (currentSide === 'right') ? 'left'
+                        : (Math.random() < 0.5 ? 'left' : 'right');
+            const x = (currentSide === 'left' ? -1 : 1) * (5.0 + Math.random() * 0.8);
+            const y = (Math.random() - 0.5) * 2.4;
+            return [x, y];
+        }
+
+        window.aiHead.setOffset(...pickPosition());
+        window.aiHead.setMode('default');
+
+        function scheduleWander() {
+            setTimeout(() => {
+                window.aiHead.wanderTo(...pickPosition());
+                scheduleWander();
+            }, 4000 + Math.random() * 3000);
+        }
+        scheduleWander();
     </script>
 
 </body>

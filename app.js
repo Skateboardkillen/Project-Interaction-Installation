@@ -115,6 +115,9 @@ app.post('/upload/submit', upload.single('formPhoto'), async (req, res) => {
     }
 
     try {
+        // Signal immediately so the desktop poll shows "processing" without waiting for Gemini
+        await redis.set(KEY_UPLOAD, { received: true, processing: true }, { ex: TTL_UPLOAD });
+
         let score   = null;
         let name    = 'Anonymous';
         let comment = 'Our systems were unable to complete the evaluation.';

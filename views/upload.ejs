@@ -9,15 +9,10 @@
         body { padding: 0; overflow: hidden; }
 
         .corner {
-            position: fixed;
-            width: 22px;
-            height: 22px;
-            z-index: 20;
+            position: fixed; width: 22px; height: 22px; z-index: 20;
         }
         .corner::before, .corner::after {
-            content: '';
-            position: absolute;
-            background: rgba(255, 255, 255, 0.45);
+            content: ''; position: absolute; background: rgba(255,255,255,0.45);
         }
         .corner::before { width: 1px; height: 100%; left: 50%; transform: translateX(-50%); }
         .corner::after  { height: 1px; width: 100%; top: 50%;  transform: translateY(-50%); }
@@ -27,105 +22,105 @@
         .corner-br { bottom: 1.6rem; right: 1.6rem; }
 
         .label-bar {
-            position: fixed;
-            left: 0; right: 0;
-            display: flex;
-            align-items: center;
-            z-index: 20;
-            padding: 0 2.8rem;
+            position: fixed; left: 0; right: 0;
+            display: flex; align-items: center; z-index: 20; padding: 0 2.8rem;
         }
         .label-bar-top    { top: 1.68rem; }
         .label-bar-bottom { bottom: 1.68rem; }
         .label-bar .line  { flex: 1; height: 1px; background: rgba(255,255,255,0.22); }
         .label-bar span {
-            padding: 0 1rem;
-            font-size: 0.7rem;
-            letter-spacing: 0.14em;
-            color: rgba(255,255,255,0.38);
-            white-space: nowrap;
-            font-family: var(--font-sans);
+            padding: 0 1rem; font-size: 0.7rem; letter-spacing: 0.14em;
+            color: rgba(255,255,255,0.38); white-space: nowrap; font-family: var(--font-sans);
         }
 
         .page-content {
-            position: fixed;
-            inset: 0;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 5rem;
-            z-index: 10;
-            padding: 0 6rem;
+            position: fixed; inset: 0;
+            display: flex; align-items: center; justify-content: center;
+            gap: 5rem; z-index: 10; padding: 0 6rem;
         }
 
-        /* Left: text */
         .upload-text { flex: 1; }
         .page-title {
             font-size: clamp(2.8rem, 6vw, 5.5rem);
-            font-weight: 900;
-            color: #ffffff;
-            letter-spacing: -0.02em;
-            line-height: 1.05;
-            margin: 0 0 1rem;
+            font-weight: 900; color: #ffffff;
+            letter-spacing: -0.02em; line-height: 1.05; margin: 0 0 1rem;
+            transition: opacity 0.5s ease;
         }
         .page-subtitle {
-            font-size: 0.95rem;
-            color: rgba(255,255,255,0.42);
-            line-height: 1.65;
-            margin: 0 0 2rem;
-            max-width: 320px;
+            font-size: 0.95rem; color: rgba(255,255,255,0.42);
+            line-height: 1.65; margin: 0 0 2rem; max-width: 320px;
+            transition: opacity 0.5s ease;
         }
 
-        /* Waiting / done states */
         .status {
-            display: flex;
-            align-items: center;
-            gap: 0.7rem;
-            font-size: 0.82rem;
-            letter-spacing: 0.1em;
-            color: rgba(255,255,255,0.35);
-            font-family: 'Courier New', monospace;
+            display: flex; align-items: center; gap: 0.7rem;
+            font-size: 0.82rem; letter-spacing: 0.1em;
+            color: rgba(255,255,255,0.35); font-family: 'Courier New', monospace;
         }
         .status-dot {
-            width: 8px; height: 8px;
-            border-radius: 50%;
+            width: 8px; height: 8px; border-radius: 50%;
             background: rgba(255,255,255,0.25);
             animation: waiting-pulse 1.4s ease-in-out infinite;
+            flex-shrink: 0;
         }
         @keyframes waiting-pulse {
             0%, 100% { opacity: 0.25; transform: scale(1); }
             50%       { opacity: 1;    transform: scale(1.35); }
         }
-        .status.received .status-dot {
-            background: #00ff41;
-            animation: none;
-        }
+        .status.received .status-dot { background: #00ff41; animation: none; }
         .status.received { color: #00ff41; }
+        .status.processing .status-dot {
+            background: var(--primary-color);
+            animation: processing-pulse 0.6s ease-in-out infinite;
+        }
+        .status.processing { color: var(--primary-color); }
+        @keyframes processing-pulse {
+            0%, 100% { opacity: 0.5; transform: scale(1); }
+            50%       { opacity: 1;   transform: scale(1.5); }
+        }
 
-        /* Right: QR code */
         .qr-wrap {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 1rem;
+            display: flex; flex-direction: column; align-items: center; gap: 1rem;
         }
         .qr-frame {
             padding: 14px;
-            border: 1px solid rgba(0,255,65,0.3);
-            border-radius: 6px;
+            border: 1px solid rgba(0,255,65,0.3); border-radius: 6px;
             box-shadow: 0 0 32px rgba(0,255,65,0.12), inset 0 0 16px rgba(0,255,65,0.06);
-            background: #000;
-            transition: box-shadow 0.5s ease, border-color 0.5s ease;
+            background: #000; transition: box-shadow 0.5s ease, border-color 0.5s ease, opacity 0.5s ease;
         }
         .qr-frame.received {
             border-color: rgba(0,255,65,0.7);
             box-shadow: 0 0 60px rgba(0,255,65,0.35), inset 0 0 24px rgba(0,255,65,0.12);
         }
+        .qr-frame.processing {
+            border-color: rgba(200,0,0,0.4);
+            box-shadow: 0 0 40px rgba(200,0,0,0.2), inset 0 0 16px rgba(200,0,0,0.08);
+            opacity: 0.4;
+        }
         .qr-frame img { display: block; width: 220px; height: 220px; }
         .qr-label {
-            font-size: 0.7rem;
-            letter-spacing: 0.12em;
-            color: rgba(255,255,255,0.28);
+            font-size: 0.7rem; letter-spacing: 0.12em;
+            color: rgba(255,255,255,0.28); font-family: 'Courier New', monospace;
+            transition: opacity 0.5s ease;
+        }
+
+        /* Floating evaluation phrases */
+        .float-phrase {
+            position: fixed;
             font-family: 'Courier New', monospace;
+            font-size: 0.62rem;
+            letter-spacing: 0.14em;
+            color: var(--primary-color);
+            pointer-events: none;
+            z-index: 8;
+            white-space: nowrap;
+            animation: phrase-float 3.5s ease-out forwards;
+        }
+        @keyframes phrase-float {
+            0%   { opacity: 0; transform: translateY(0px); }
+            12%  { opacity: 0.7; }
+            80%  { opacity: 0.5; }
+            100% { opacity: 0; transform: translateY(-90px); }
         }
 
         .ui-layer { transition: opacity 0.6s ease; }
@@ -149,8 +144,8 @@
 
     <div class="page-content ui-layer">
         <div class="upload-text">
-            <h1 class="page-title">SCAN &amp;<br>UPLOAD<br>YOUR FORM.</h1>
-            <p class="page-subtitle">Take an image of the completed form with your phone and upload it using the QR code.</p>
+            <h1 class="page-title" id="pageTitle">SCAN &amp;<br>UPLOAD<br>YOUR FORM.</h1>
+            <p class="page-subtitle" id="pageSubtitle">Take an image of the completed form with your phone and upload it using the QR code.</p>
             <div class="status" id="status">
                 <div class="status-dot"></div>
                 <span id="status-text">WAITING FOR UPLOAD...</span>
@@ -161,7 +156,7 @@
             <div class="qr-frame" id="qrFrame">
                 <img src="<%= qrDataUrl %>" alt="Upload QR code">
             </div>
-            <span class="qr-label">SCAN WITH PHONE CAMERA</span>
+            <span class="qr-label" id="qrLabel">SCAN WITH PHONE CAMERA</span>
         </div>
     </div>
 
@@ -172,8 +167,83 @@
     </div>
 
     <script>
-        // Poll /upload/status every 2 s until a photo arrives
-        let pollDone = false;
+        let pollDone       = false;
+        let showProcessing = false;
+        let phraseTimer    = null;
+
+        const PHRASES = [
+            'ANALYZING VOCABULARY...',
+            'EVALUATING SYNTAX...',
+            'MEASURING SOPHISTICATION...',
+            'PARSING FORMAL REGISTER...',
+            'ASSESSING LINGUISTIC DEPTH...',
+            'CALIBRATING LANGUAGE INDEX...',
+            'PROCESSING HANDWRITING...',
+            'COMPUTING ELITIST SCORE...',
+            'CROSS-REFERENCING LEXICON...',
+            'QUANTIFYING ELOQUENCE...',
+            'DETECTING MEDIOCRITY...',
+            'INDEXING VERBAL PRECISION...',
+        ];
+        let phraseIdx = 0;
+
+        function spawnPhrase() {
+            const el = document.createElement('div');
+            el.className = 'float-phrase';
+            el.textContent = PHRASES[phraseIdx % PHRASES.length];
+            phraseIdx++;
+            // Spread across the full viewport, avoiding edges
+            el.style.left = (8 + Math.random() * 74) + 'vw';
+            el.style.top  = (15 + Math.random() * 60) + 'vh';
+            document.body.appendChild(el);
+            el.addEventListener('animationend', () => el.remove());
+        }
+
+        function startProcessingState() {
+            if (showProcessing) return;
+            showProcessing = true;
+
+            // Status → received flash then processing
+            const statusEl  = document.getElementById('status');
+            const statusTxt = document.getElementById('status-text');
+            statusEl.classList.add('received');
+            statusTxt.textContent = 'UPLOAD RECEIVED';
+            document.getElementById('qrFrame').classList.add('received');
+
+            setTimeout(() => {
+                statusEl.classList.remove('received');
+                statusEl.classList.add('processing');
+                statusTxt.textContent = 'AI PROCESSING...';
+                document.getElementById('qrFrame').classList.remove('received');
+                document.getElementById('qrFrame').classList.add('processing');
+                document.getElementById('qrLabel').style.opacity = '0';
+
+                // Swap heading text
+                document.getElementById('pageTitle').style.opacity = '0';
+                document.getElementById('pageSubtitle').style.opacity = '0';
+                setTimeout(() => {
+                    document.getElementById('pageTitle').innerHTML = 'EVALUATING<br>YOUR<br>APPLICATION.';
+                    document.getElementById('pageSubtitle').textContent = 'The AI is analysing the language used in your responses.';
+                    document.getElementById('pageTitle').style.opacity = '1';
+                    document.getElementById('pageSubtitle').style.opacity = '1';
+                }, 500);
+
+                // Start floating phrases
+                spawnPhrase();
+                phraseTimer = setInterval(spawnPhrase, 900);
+
+                window.aiHead.setMode('calculating');
+            }, 900);
+        }
+
+        function showDoneAndNavigate() {
+            clearInterval(phraseTimer);
+            document.querySelectorAll('.ui-layer').forEach(el => el.classList.add('hidden'));
+            setTimeout(() => {
+                window.aiHead.setMode('forward');
+                window.aiHead.navigateTo('/result');
+            }, 1000);
+        }
 
         async function pollStatus() {
             if (pollDone) return;
@@ -181,22 +251,14 @@
                 const res  = await fetch('/upload/status');
                 const data = await res.json();
 
-                if (!data.pending) {
+                if (data.received && data.processing) {
+                    // Photo received, Gemini still working
+                    startProcessingState();
+                } else if (!data.pending) {
+                    // Gemini done, result ready
                     pollDone = true;
-
-                    // Visual feedback
-                    document.getElementById('status').classList.add('received');
-                    document.getElementById('status-text').textContent = 'UPLOAD RECEIVED';
-                    document.getElementById('qrFrame').classList.add('received');
-
-                    setTimeout(() => {
-                        document.querySelectorAll('.ui-layer').forEach(el => el.classList.add('hidden'));
-                        setTimeout(() => {
-                            window.aiHead.setMode('forward');
-                            window.aiHead.navigateTo('/result');
-                        }, 1000);
-                    }, 1800);
-
+                    if (!showProcessing) startProcessingState();
+                    setTimeout(showDoneAndNavigate, 1200);
                     return;
                 }
             } catch {}
@@ -204,7 +266,6 @@
         }
         pollStatus();
 
-        // Head sits centered between text and QR code, in calculating state
         window.aiHead.setOffset(0, 0);
         window.aiHead.setMode('calculating');
     </script>
