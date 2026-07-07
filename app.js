@@ -112,7 +112,6 @@ app.post('/upload/submit', upload.single('formPhoto'), async (req, res) => {
         let name    = 'Anonymous';
         let comment = 'Our systems were unable to complete the evaluation.';
 
-        //dawd
         try {
             const model  = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
             const result = await model.generateContent([
