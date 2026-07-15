@@ -87,7 +87,10 @@ app.get('/upload', async (req, res) => {
     await redis.set(KEY_TOKEN, token, { ex: TTL_TOKEN });
     await redis.del(KEY_UPLOAD);
 
-    const base      = `${req.protocol}://${req.get('host')}`;
+    // VERCEL_URL is auto-set by Vercel (no https:// prefix); fall back to request headers locally
+    const base      = process.env.VERCEL_URL
+        ? `https://${process.env.VERCEL_URL}`
+        : `${req.protocol}://${req.get('host')}`;
     const mobileUrl = `${base}/mobile-upload?token=${token}`;
     const qrDataUrl = await QRCode.toDataURL(mobileUrl, {
         width:           320,
