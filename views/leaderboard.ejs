@@ -36,65 +36,82 @@
         .page-content {
             position: fixed; inset: 0;
             display: flex; flex-direction: column;
-            align-items: center; justify-content: flex-start;
-            z-index: 10; padding: 4.5rem 4rem 4.5rem;
-            overflow-y: auto;
+            align-items: center; justify-content: center;
+            z-index: 10; padding: 4.5rem 4rem;
         }
 
-        .page-header {
-            width: 100%; max-width: 780px;
-            display: flex; align-items: baseline;
-            justify-content: space-between;
-            margin-bottom: 1.8rem; flex-shrink: 0;
+        /* Framed panel */
+        .leaderboard-frame {
+            width: 100%; max-width: 820px;
+            max-height: calc(100vh - 9rem);
+            display: flex; flex-direction: column;
+            border: 1px solid rgba(200,0,0,0.25);
+            border-radius: 6px;
+            background: rgba(0,0,0,0.55);
+            box-shadow: 0 0 60px rgba(200,0,0,0.08), inset 0 0 40px rgba(0,0,0,0.4);
+            overflow: hidden;
+        }
+
+        /* Frame header */
+        .frame-header {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 1.1rem 1.6rem;
+            border-bottom: 1px solid rgba(200,0,0,0.18);
+            background: rgba(200,0,0,0.05);
+            flex-shrink: 0;
         }
         .page-title {
-            font-size: clamp(1.6rem, 4vw, 3rem);
+            font-size: clamp(1rem, 2.5vw, 1.5rem);
             font-weight: 900; color: #fff;
-            letter-spacing: -0.02em; margin: 0;
+            letter-spacing: -0.01em; margin: 0;
         }
         .entry-count {
-            font-size: 0.72rem; letter-spacing: 0.18em;
+            font-size: 0.68rem; letter-spacing: 0.18em;
             color: rgba(255,255,255,0.25); font-family: 'Courier New', monospace;
         }
 
+        /* Scrollable body */
+        .frame-body {
+            overflow-y: auto; flex: 1;
+            padding: 0 1.6rem;
+        }
+        .frame-body::-webkit-scrollbar { width: 4px; }
+        .frame-body::-webkit-scrollbar-track { background: transparent; }
+        .frame-body::-webkit-scrollbar-thumb { background: rgba(200,0,0,0.3); border-radius: 2px; }
+
         /* Column headers */
         .list-header {
-            width: 100%; max-width: 780px;
             display: grid;
             grid-template-columns: 3rem 1fr 120px;
             gap: 0 1.5rem;
-            padding: 0 0 0.6rem;
+            padding: 0.8rem 0;
             border-bottom: 1px solid rgba(255,255,255,0.08);
-            margin-bottom: 0.4rem; flex-shrink: 0;
+            position: sticky; top: 0;
+            background: rgba(0,0,0,0.8);
+            backdrop-filter: blur(4px);
         }
         .list-header span {
-            font-size: 0.62rem; letter-spacing: 0.18em;
-            color: rgba(255,255,255,0.22); font-family: 'Courier New', monospace;
+            font-size: 0.6rem; letter-spacing: 0.18em;
+            color: rgba(255,255,255,0.2); font-family: 'Courier New', monospace;
         }
         .list-header .col-score { text-align: right; }
 
         /* Entries */
-        .entries {
-            width: 100%; max-width: 780px;
-            display: flex; flex-direction: column; gap: 0;
-        }
+        .entries { display: flex; flex-direction: column; gap: 0; }
 
         .entry {
             display: grid;
             grid-template-columns: 3rem 1fr 120px;
             gap: 0 1.5rem;
             align-items: center;
-            padding: 0.9rem 0;
-            border-bottom: 1px solid rgba(255,255,255,0.05);
+            padding: 0.85rem 0;
+            border-bottom: 1px solid rgba(255,255,255,0.04);
             opacity: 0;
             transform: translateY(6px);
             transition: opacity 0.4s ease, transform 0.4s ease;
         }
-        .entry.visible {
-            opacity: 1;
-            transform: translateY(0);
-        }
-        .entry:hover { background: rgba(255,255,255,0.02); }
+        .entry.visible { opacity: 1; transform: translateY(0); }
+        .entry:hover { background: rgba(255,255,255,0.025); }
 
         .entry-rank {
             font-family: 'Courier New', monospace;
@@ -146,7 +163,6 @@
 
         /* Empty state */
         .empty-state {
-            width: 100%; max-width: 780px;
             text-align: center; padding: 4rem 0;
             color: rgba(255,255,255,0.2);
             font-family: 'Courier New', monospace;
@@ -185,38 +201,44 @@
     </div>
 
     <div class="page-content ui-layer">
-        <div class="page-header">
-            <h1 class="page-title">APPLICANT<br>RANKINGS</h1>
-            <span class="entry-count"><%= entries.length %> APPLICANT<%= entries.length !== 1 ? 'S' : '' %></span>
-        </div>
+        <div class="leaderboard-frame">
 
-        <% if (entries.length === 0) { %>
-            <div class="empty-state">NO APPLICATIONS SUBMITTED YET</div>
-        <% } else { %>
-            <div class="list-header">
-                <span>#</span>
-                <span>APPLICANT</span>
-                <span class="col-score">SCORE</span>
+            <div class="frame-header">
+                <h1 class="page-title">APPLICANT RANKINGS</h1>
+                <span class="entry-count"><%= entries.length %> APPLICANT<%= entries.length !== 1 ? 'S' : '' %></span>
             </div>
-            <div class="entries">
-                <% entries.forEach((entry, i) => { %>
-                    <div class="entry" data-score="<%= entry.score %>" data-index="<%= i %>">
-                        <div class="entry-rank <%= i < 3 ? 'top' : '' %>">#<%= i + 1 %></div>
-                        <div class="entry-info">
-                            <div class="entry-name"><%= entry.name || 'Anonymous' %></div>
-                            <div class="entry-comment"><%= entry.comment %></div>
-                            <div class="score-bar-track" style="margin-top:0.4rem;">
-                                <div class="score-bar-fill" style="width:0%" data-width="<%= entry.score %>%"></div>
-                            </div>
-                        </div>
-                        <div class="entry-score-col">
-                            <span class="entry-score <%= i < 3 ? 'top' : '' %>"><%= entry.score %></span>
-                            <span class="entry-denom">/ 100</span>
-                        </div>
+
+            <div class="frame-body">
+                <% if (entries.length === 0) { %>
+                    <div class="empty-state">NO APPLICATIONS SUBMITTED YET</div>
+                <% } else { %>
+                    <div class="list-header">
+                        <span>#</span>
+                        <span>APPLICANT</span>
+                        <span class="col-score">SCORE</span>
                     </div>
-                <% }) %>
+                    <div class="entries">
+                        <% entries.forEach((entry, i) => { %>
+                            <div class="entry" data-score="<%= entry.score %>" data-index="<%= i %>">
+                                <div class="entry-rank <%= i < 3 ? 'top' : '' %>">#<%= i + 1 %></div>
+                                <div class="entry-info">
+                                    <div class="entry-name"><%= entry.name || 'Anonymous' %></div>
+                                    <div class="entry-comment"><%= entry.comment %></div>
+                                    <div class="score-bar-track" style="margin-top:0.4rem;">
+                                        <div class="score-bar-fill" style="width:0%" data-width="<%= entry.score %>%"></div>
+                                    </div>
+                                </div>
+                                <div class="entry-score-col">
+                                    <span class="entry-score <%= i < 3 ? 'top' : '' %>"><%= entry.score %></span>
+                                    <span class="entry-denom">/ 100</span>
+                                </div>
+                            </div>
+                        <% }) %>
+                    </div>
+                <% } %>
             </div>
-        <% } %>
+
+        </div>
     </div>
 
     <div class="label-bar label-bar-bottom ui-layer">
