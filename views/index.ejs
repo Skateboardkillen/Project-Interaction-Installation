@@ -98,6 +98,26 @@
         .btn-apply:hover  { background: var(--primary-hover); }
         .btn-apply:active { transform: scale(0.97); }
 
+        .btn-leaderboard {
+            position: fixed;
+            bottom: 2.8rem;
+            right: 3.2rem;
+            font-family: var(--font-sans);
+            font-size: 0.75rem;
+            font-weight: 600;
+            letter-spacing: 0.1em;
+            color: rgba(255, 255, 255, 0.3);
+            background: transparent;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 3px;
+            padding: 0.5rem 1.2rem;
+            cursor: pointer;
+            z-index: 30;
+            transition: color 0.2s, border-color 0.2s, transform 0.1s;
+        }
+        .btn-leaderboard:hover  { color: rgba(255,255,255,0.65); border-color: rgba(255,255,255,0.28); }
+        .btn-leaderboard:active { transform: scale(0.97); }
+
         /* Fade out all UI overlay elements on start */
         .ui-layer {
             transition: opacity 0.6s ease;
@@ -135,16 +155,25 @@
         <div class="line"></div>
     </div>
 
+    <button class="btn-leaderboard ui-layer" id="leaderboardBtn">VIEW RANKINGS</button>
+
     <script>
         document.getElementById('startBtn').addEventListener('click', () => {
-            // Fade out all UI overlays and glide the head to center
             document.querySelectorAll('.ui-layer').forEach(el => el.classList.add('hidden'));
             window.aiHead.wanderTo(0, 0);
-
             setTimeout(() => {
                 window.aiHead.setMode('forward');
                 window.aiHead.navigateTo('/installation-explanation');
             }, 1000);
+        });
+
+        document.getElementById('leaderboardBtn').addEventListener('click', () => {
+            document.querySelectorAll('.ui-layer').forEach(el => el.classList.add('hidden'));
+            window.aiHead.wanderTo(0, 0);
+            setTimeout(() => {
+                window.aiHead.setMode('displaying');
+                window.aiHead.navigateTo('/leaderboard');
+            }, 800);
         });
 
         // Alternates strictly left / right; Y is randomised each time

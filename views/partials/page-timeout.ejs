@@ -1,0 +1,29 @@
+<script>
+    (function () {
+        const TIMEOUT_MS = <%= typeof timeoutMs !== 'undefined' ? timeoutMs : 7 * 60 * 1000 %>;
+        let _timer;
+
+        function triggerTimeout() {
+            document.querySelectorAll('.ui-layer').forEach(el => el.classList.add('hidden'));
+            setTimeout(() => {
+                if (window.aiHead) {
+                    window.aiHead.setMode('forward');
+                    window.aiHead.navigateTo('/');
+                } else {
+                    window.location.href = '/';
+                }
+            }, 900);
+        }
+
+        function resetTimer() {
+            clearTimeout(_timer);
+            _timer = setTimeout(triggerTimeout, TIMEOUT_MS);
+        }
+
+        ['mousemove', 'mousedown', 'keydown', 'touchstart', 'click'].forEach(evt => {
+            document.addEventListener(evt, resetTimer, { passive: true });
+        });
+
+        resetTimer();
+    })();
+</script>
