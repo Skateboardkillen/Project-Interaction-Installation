@@ -122,25 +122,41 @@ app.post('/upload/submit', upload.single('formPhoto'), async (req, res) => {
         let name    = 'Anonymous';
         let comment = 'Our systems were unable to complete the evaluation.';
 
-        try {
-            const model  = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
-            const result = await model.generateContent([
-                {
-                    inlineData: {
-                        data:     req.file.buffer.toString('base64'),
-                        mimeType: req.file.mimetype,
-                    },
-                },
-                GEMINI_PROMPT,
-            ]);
+        const MODELS   = ['gemini-2.5-flash', 'gemini-1.5-flash-latest'];
+        const MAX_TRIES = 4;
+        const sleep     = ms => new Promise(r => setTimeout(r, ms));
 
-            const raw  = result.response.text().trim().replace(/^```json\n?/, '').replace(/\n?```$/, '');
-            const data = JSON.parse(raw);
-            score   = Math.min(100, Math.max(0, Math.round(data.score)));
-            name    = (data.name || 'Anonymous').trim();
-            comment = data.comment || comment;
-        } catch (geminiErr) {
-            console.error('Gemini analysis failed:', geminiErr.message);
+        outer: for (const modelName of MODELS) {
+            for (let attempt = 1; attempt <= MAX_TRIES; attempt++) {
+                try {
+                    const model  = genAI.getGenerativeModel({ model: modelName });
+                    const result = await model.generateContent([
+                        {
+                            inlineData: {
+                                data:     req.file.buffer.toString('base64'),
+                                mimeType: req.file.mimetype,
+                            },
+                        },
+                        GEMINI_PROMPT,
+                    ]);
+
+                    const raw  = result.response.text().trim().replace(/^```json\n?/, '').replace(/\n?```$/, '');
+                    const data = JSON.parse(raw);
+                    score   = Math.min(100, Math.max(0, Math.round(data.score)));
+                    name    = (data.name || 'Anonymous').trim();
+                    comment = data.comment || comment;
+                    break outer; // success — stop all retries
+                } catch (err) {
+                    const msg = err.message || '';
+                    const isRetryable = msg.includes('503') || msg.includes('429') || msg.includes('overloaded');
+                    console.error(`Gemini [${modelName}] attempt ${attempt} failed: ${msg.slice(0, 120)}`);
+                    if (isRetryable && attempt < MAX_TRIES) {
+                        await sleep(attempt * 4000); // 4s, 8s, 12s
+                    } else {
+                        break; // non-retryable or out of attempts — try next model
+                    }
+                }
+            }
         }
 
         const entry = { score, name, comment, ts: Date.now() };

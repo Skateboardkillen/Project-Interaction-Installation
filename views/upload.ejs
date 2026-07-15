@@ -123,6 +123,19 @@
             100% { opacity: 0; transform: translateY(-90px); }
         }
 
+        .btn-restart {
+            margin-top: 1.6rem;
+            font-family: var(--font-sans); font-size: 0.75rem;
+            font-weight: 500; letter-spacing: 0.08em;
+            color: rgba(255,255,255,0.25); background: transparent;
+            border: 1px solid rgba(255,255,255,0.1); border-radius: 3px;
+            padding: 0.5rem 1.2rem; cursor: pointer;
+            transition: color 0.2s, border-color 0.2s, opacity 0.4s;
+            display: block;
+        }
+        .btn-restart:hover { color: rgba(255,255,255,0.6); border-color: rgba(255,255,255,0.3); }
+        .btn-restart.hidden-btn { opacity: 0; pointer-events: none; }
+
         .ui-layer { transition: opacity 0.6s ease; }
         .ui-layer.hidden { opacity: 0; pointer-events: none; }
     </style>
@@ -150,6 +163,7 @@
                 <div class="status-dot"></div>
                 <span id="status-text">WAITING FOR UPLOAD...</span>
             </div>
+            <button class="btn-restart" id="restartBtn">↩ Restart Installation</button>
         </div>
 
         <div class="qr-wrap">
@@ -233,6 +247,7 @@
                 phraseTimer = setInterval(spawnPhrase, 900);
 
                 window.aiHead.setMode('calculating');
+                document.getElementById('restartBtn').classList.add('hidden-btn');
             }, 900);
         }
 
@@ -265,6 +280,17 @@
             setTimeout(pollStatus, 2000);
         }
         pollStatus();
+
+        document.getElementById('restartBtn').addEventListener('click', () => {
+            pollDone = true;
+            clearInterval(phraseTimer);
+            document.querySelectorAll('.ui-layer').forEach(el => el.classList.add('hidden'));
+            window.aiHead.wanderTo(0, 0);
+            setTimeout(() => {
+                window.aiHead.setMode('forward');
+                window.aiHead.navigateTo('/');
+            }, 1000);
+        });
 
         window.aiHead.setOffset(0, 0);
         window.aiHead.setMode('calculating');
