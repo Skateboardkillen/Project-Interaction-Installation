@@ -36,8 +36,12 @@ const upload = multer({
 const KEY_TOKEN       = 'session:current_token';
 const KEY_UPLOAD      = 'session:latest_upload';
 const KEY_LEADERBOARD = 'leaderboard';
+const KEY_PRINT_QUEUE = 'print:queue';
 const TTL_TOKEN       = 60 * 60;
 const TTL_UPLOAD      = 60 * 60 * 2;
+
+// Shared secret the printer's Python script presents when polling for jobs.
+const PRINTER_SECRET = process.env.PRINTER_SECRET;
 
 // ── Gemini prompt ──────────────────────────────────────────────────────────
 const GEMINI_PROMPT = `You are the language evaluation AI for an exclusive job application process. Your sole criterion is linguistic sophistication — vocabulary range, sentence complexity, formal register, and precision of expression. You are deliberately elitist about language and utterly unimpressed by mediocrity.
@@ -198,6 +202,39 @@ app.get('/result', async (req, res) => {
         name:    data.name   || 'Anonymous',
         comment: data.comment,
     });
+});
+
+// Called client-side by the result page once it renders — queues the
+// current session's result for the printer to pick up.
+app.post('/print/enqueue', async (req, res) => {
+    const data = await redis.get(KEY_UPLOAD);
+    if (!data) return res.json({ ok: false, reason: 'no-result' });
+    if (data.printed) return res.json({ ok: true, reason: 'already-queued' });
+
+    await redis.rpush(KEY_PRINT_QUEUE, JSON.stringify({
+        name:    data.name || 'Anonymous',
+        score:   data.score,
+        comment: data.comment,
+        ts:      Date.now(),
+    }));
+    await redis.set(KEY_UPLOAD, { ...data, printed: true }, { ex: TTL_UPLOAD });
+
+    res.json({ ok: true });
+});
+
+// Polled by the printer's Python script (on a separate network) to fetch
+// and dequeue the next print job. Requires the shared PRINTER_SECRET.
+app.get('/print/next', async (req, res) => {
+    if (!PRINTER_SECRET) return res.status(500).json({ error: 'PRINTER_SECRET not configured' });
+
+    const key = req.get('x-printer-key');
+    if (key !== PRINTER_SECRET) return res.status(401).json({ error: 'Unauthorized' });
+
+    const raw = await redis.lpop(KEY_PRINT_QUEUE);
+    if (!raw) return res.json({ job: null });
+
+    const job = typeof raw === 'string' ? JSON.parse(raw) : raw;
+    res.json({ job });
 });
 
 app.get('/leaderboard', async (req, res) => {

@@ -212,7 +212,10 @@
             fadeAndNavigate('/upload');
         });
 
-        fetch('/upload/clear', { method: 'POST' });
+        // Enqueue the print job before clearing the session result — the two
+        // requests race otherwise and /print/enqueue can find nothing to send.
+        fetch('/print/enqueue', { method: 'POST' })
+            .finally(() => fetch('/upload/clear', { method: 'POST' }));
 
         // Wander left/right like the index page
         let currentSide = null;
