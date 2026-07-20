@@ -89,6 +89,61 @@ h1, h2, h3 {
     box-shadow: 0 0 12px rgba(255, 0, 0, 0.5);
 }
 
+/* Shared page-action buttons — solid primary, outlined secondary, corner nav */
+.btn-apply,
+.btn-primary-action {
+    font-family: var(--font-sans);
+    font-size: 0.88rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    color: #fff;
+    background: var(--primary-color);
+    border: none;
+    border-radius: 3px;
+    padding: 0.7rem 2rem;
+    cursor: pointer;
+    transition: background 0.2s ease, transform 0.1s ease;
+}
+.btn-apply:hover,  .btn-primary-action:hover  { background: var(--primary-hover); }
+.btn-apply:active, .btn-primary-action:active { transform: scale(0.97); }
+
+.btn-back {
+    font-family: var(--font-sans);
+    font-size: 0.82rem;
+    font-weight: 500;
+    letter-spacing: 0.06em;
+    color: rgba(255, 255, 255, 0.75);
+    background: transparent;
+    border: 1px solid var(--primary-color);
+    border-radius: 3px;
+    padding: 0.7rem 1.6rem;
+    cursor: pointer;
+    transition: color 0.2s ease, border-color 0.2s ease, transform 0.1s ease;
+}
+.btn-back:hover  { color: #fff; border-color: var(--primary-hover); }
+.btn-back:active { transform: scale(0.97); }
+
+.btn-leaderboard,
+.back-btn {
+    position: fixed;
+    bottom: 2.8rem;
+    right: 3.2rem;
+    font-family: var(--font-sans);
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    color: rgba(255, 255, 255, 0.75);
+    background: transparent;
+    border: 1px solid var(--primary-color);
+    border-radius: 3px;
+    padding: 0.5rem 1.2rem;
+    cursor: pointer;
+    z-index: 30;
+    transition: color 0.2s, border-color 0.2s, transform 0.1s;
+}
+.btn-leaderboard:hover,  .back-btn:hover  { color: #fff; border-color: var(--primary-hover); }
+.btn-leaderboard:active, .back-btn:active { transform: scale(0.97); }
+
 /* Centered full-screen overlay layout */
 .screen-center {
     position: fixed;
