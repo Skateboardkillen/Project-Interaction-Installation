@@ -51,6 +51,8 @@
             font-weight: 900; color: #fff;
             letter-spacing: -0.02em; margin: 0; text-align: center;
         }
+        .page-title.status-accepted { color: #2ecc71; }
+        .page-title.status-failed   { color: var(--primary-color); }
 
         .analysis-panel {
             display: flex; flex-direction: column;
@@ -149,7 +151,9 @@
 
     <div class="page-content ui-layer">
         <div class="applicant-name">APPLICANT — <%= name %></div>
-        <h1 class="page-title">AI EVALUATION</h1>
+        <h1 class="page-title <%= status === 'ACCEPTED' ? 'status-accepted' : (status === 'FAILED' ? 'status-failed' : '') %>">
+            <% if (status === 'ACCEPTED') { %>Accepted!<% } else if (status === 'FAILED') { %>You failed!<% } else { %>AI EVALUATION<% } %>
+        </h1>
 
         <div class="analysis-panel">
             <div class="rating-block">

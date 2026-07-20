@@ -43,6 +43,13 @@ const TTL_UPLOAD      = 60 * 60 * 2;
 // Shared secret the printer's Python script presents when polling for jobs.
 const PRINTER_SECRET = process.env.PRINTER_SECRET;
 
+// Score needed to pass — shared by the result page and the printed ticket.
+const PASS_THRESHOLD = 90;
+function getStatus(score) {
+    if (score === null || score === undefined) return null;
+    return score >= PASS_THRESHOLD ? 'ACCEPTED' : 'FAILED';
+}
+
 // ── Gemini prompt ──────────────────────────────────────────────────────────
 const GEMINI_PROMPT = `You are the language evaluation AI for an exclusive job application process. Your sole criterion is linguistic sophistication — vocabulary range, sentence complexity, formal register, and precision of expression. You are deliberately elitist about language and utterly unimpressed by mediocrity.
 
@@ -201,6 +208,7 @@ app.get('/result', async (req, res) => {
         score:   data.score,
         name:    data.name   || 'Anonymous',
         comment: data.comment,
+        status:  getStatus(data.score),
     });
 });
 
@@ -215,6 +223,7 @@ app.post('/print/enqueue', async (req, res) => {
         name:    data.name || 'Anonymous',
         score:   data.score,
         comment: data.comment,
+        status:  getStatus(data.score),
         ts:      Date.now(),
     }));
     await redis.set(KEY_UPLOAD, { ...data, printed: true }, { ex: TTL_UPLOAD });
