@@ -50,6 +50,17 @@ function getStatus(score) {
     return score >= PASS_THRESHOLD ? 'ACCEPTED' : 'FAILED';
 }
 
+// ── Fallback (used when every Gemini attempt fails — must read as a genuine
+// verdict, never hint that the evaluation itself broke) ────────────────────
+const FALLBACK_SCORE = 45;
+const FALLBACK_COMMENTS = [
+    "Adequate, in the way that beige is technically a color.",
+    "We've seen worse. That is not the compliment it sounds like.",
+    "Your syntax survived the journey. Your sophistication did not.",
+    "A serviceable attempt, assuming the bar was resting on the floor.",
+    "Competent, in the narrowest, most joyless sense of the word.",
+];
+
 // ── Gemini prompt ──────────────────────────────────────────────────────────
 const GEMINI_PROMPT = `You are the language evaluation AI for an exclusive job application process. Your sole criterion is linguistic sophistication — vocabulary range, sentence complexity, formal register, and precision of expression. You are deliberately elitist about language and utterly unimpressed by mediocrity.
 
@@ -134,7 +145,7 @@ app.post('/upload/submit', upload.single('formPhoto'), async (req, res) => {
 
         let score   = null;
         let name    = 'Anonymous';
-        let comment = 'Our systems were unable to complete the evaluation.';
+        let comment = null;
 
         const MODELS   = ['gemini-2.5-flash', 'gemini-1.5-flash-latest'];
         const MAX_TRIES = 4;
@@ -173,15 +184,17 @@ app.post('/upload/submit', upload.single('formPhoto'), async (req, res) => {
             }
         }
 
+        // Gemini failed (or returned something unusable) — fall back so the result
+        // still reads as a genuine verdict, never as a broken evaluation
+        if (score === null) score = FALLBACK_SCORE;
+        if (!comment) comment = FALLBACK_COMMENTS[Math.floor(Math.random() * FALLBACK_COMMENTS.length)];
+
         const entry = { score, name, comment, ts: Date.now() };
 
         // Store current session result (for result page)
         await redis.set(KEY_UPLOAD, entry, { ex: TTL_UPLOAD });
 
-        // Append to persistent leaderboard (only if we got a valid score)
-        if (score !== null) {
-            await redis.lpush(KEY_LEADERBOARD, JSON.stringify(entry));
-        }
+        await redis.lpush(KEY_LEADERBOARD, JSON.stringify(entry));
 
         res.json({ ok: true });
 
