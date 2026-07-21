@@ -153,6 +153,8 @@ app.post('/upload/submit', upload.single('formPhoto'), async (req, res) => {
         let name    = 'Anonymous';
         let comment = null;
 
+        console.log("Gemini is enabled: ", GEMINI_ENABLED);
+
         if (GEMINI_ENABLED) {
             const MODELS   = ['gemini-2.5-flash', 'gemini-1.5-flash-latest'];
             const MAX_TRIES = 4;
