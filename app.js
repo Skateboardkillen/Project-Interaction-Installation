@@ -43,6 +43,9 @@ const TTL_UPLOAD      = 60 * 60 * 2;
 // Shared secret the printer's Python script presents when polling for jobs.
 const PRINTER_SECRET = process.env.PRINTER_SECRET;
 
+// Set to "false" to skip calling Gemini entirely and always exercise the fallback path.
+const GEMINI_ENABLED = process.env.GEMINI_ENABLED !== 'false';
+
 // Score needed to pass — shared by the result page and the printed ticket.
 const PASS_THRESHOLD = 90;
 function getStatus(score) {
@@ -54,11 +57,14 @@ function getStatus(score) {
 // verdict, never hint that the evaluation itself broke) ────────────────────
 const FALLBACK_SCORE = 45;
 const FALLBACK_COMMENTS = [
-    "Adequate, in the way that beige is technically a color.",
     "We've seen worse. That is not the compliment it sounds like.",
     "Your syntax survived the journey. Your sophistication did not.",
     "A serviceable attempt, assuming the bar was resting on the floor.",
     "Competent, in the narrowest, most joyless sense of the word.",
+    "Passable. We use the word reluctantly.",
+    "Not without effort, though effort alone has never impressed us.",
+    "Forgettable, but not offensively so. Small mercies.",
+    "It reads. That is the extent of our enthusiasm.",
 ];
 
 // ── Gemini prompt ──────────────────────────────────────────────────────────
@@ -147,38 +153,40 @@ app.post('/upload/submit', upload.single('formPhoto'), async (req, res) => {
         let name    = 'Anonymous';
         let comment = null;
 
-        const MODELS   = ['gemini-2.5-flash', 'gemini-1.5-flash-latest'];
-        const MAX_TRIES = 4;
-        const sleep     = ms => new Promise(r => setTimeout(r, ms));
+        if (GEMINI_ENABLED) {
+            const MODELS   = ['gemini-2.5-flash', 'gemini-1.5-flash-latest'];
+            const MAX_TRIES = 4;
+            const sleep     = ms => new Promise(r => setTimeout(r, ms));
 
-        outer: for (const modelName of MODELS) {
-            for (let attempt = 1; attempt <= MAX_TRIES; attempt++) {
-                try {
-                    const model  = genAI.getGenerativeModel({ model: modelName });
-                    const result = await model.generateContent([
-                        {
-                            inlineData: {
-                                data:     req.file.buffer.toString('base64'),
-                                mimeType: req.file.mimetype,
+            outer: for (const modelName of MODELS) {
+                for (let attempt = 1; attempt <= MAX_TRIES; attempt++) {
+                    try {
+                        const model  = genAI.getGenerativeModel({ model: modelName });
+                        const result = await model.generateContent([
+                            {
+                                inlineData: {
+                                    data:     req.file.buffer.toString('base64'),
+                                    mimeType: req.file.mimetype,
+                                },
                             },
-                        },
-                        GEMINI_PROMPT,
-                    ]);
+                            GEMINI_PROMPT,
+                        ]);
 
-                    const raw  = result.response.text().trim().replace(/^```json\n?/, '').replace(/\n?```$/, '');
-                    const data = JSON.parse(raw);
-                    score   = Math.min(100, Math.max(0, Math.round(data.score)));
-                    name    = (data.name || 'Anonymous').trim();
-                    comment = data.comment || comment;
-                    break outer; // success — stop all retries
-                } catch (err) {
-                    const msg = err.message || '';
-                    const isRetryable = msg.includes('503') || msg.includes('429') || msg.includes('overloaded');
-                    console.error(`Gemini [${modelName}] attempt ${attempt} failed: ${msg.slice(0, 120)}`);
-                    if (isRetryable && attempt < MAX_TRIES) {
-                        await sleep(attempt * 4000); // 4s, 8s, 12s
-                    } else {
-                        break; // non-retryable or out of attempts — try next model
+                        const raw  = result.response.text().trim().replace(/^```json\n?/, '').replace(/\n?```$/, '');
+                        const data = JSON.parse(raw);
+                        score   = Math.min(100, Math.max(0, Math.round(data.score)));
+                        name    = (data.name || 'Anonymous').trim();
+                        comment = data.comment || comment;
+                        break outer; // success — stop all retries
+                    } catch (err) {
+                        const msg = err.message || '';
+                        const isRetryable = msg.includes('503') || msg.includes('429') || msg.includes('overloaded');
+                        console.error(`Gemini [${modelName}] attempt ${attempt} failed: ${msg.slice(0, 120)}`);
+                        if (isRetryable && attempt < MAX_TRIES) {
+                            await sleep(attempt * 4000); // 4s, 8s, 12s
+                        } else {
+                            break; // non-retryable or out of attempts — try next model
+                        }
                     }
                 }
             }
